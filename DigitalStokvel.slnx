@@ -17,4 +17,11 @@
     <Project Path="src/shared/DigitalStokvel.Domain/DigitalStokvel.Domain.csproj" />
     <Project Path="src/shared/DigitalStokvel.Infrastructure/DigitalStokvel.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/" />
+  <Folder Name="/tests/unit/">
+    <Project Path="tests/unit/DigitalStokvel.ContributionService.Tests/DigitalStokvel.ContributionService.Tests.csproj" />
+    <Project Path="tests/unit/DigitalStokvel.GovernanceService.Tests/DigitalStokvel.GovernanceService.Tests.csproj" />
+    <Project Path="tests/unit/DigitalStokvel.GroupService.Tests/DigitalStokvel.GroupService.Tests.csproj" />
+    <Project Path="tests/unit/DigitalStokvel.NotificationService.Tests/DigitalStokvel.NotificationService.Tests.csproj" />
+  </Folder>
 </Solution>
