@@ -175,7 +175,7 @@ This document breaks down the Digital Stokvel Banking implementation into sequen
 - [x] 2.5.6 Implement dispute resolution workflow ✅ March 24, 2026
 - [x] 2.5.7 Implement missed payment detection job ✅ March 24, 2026
 - [x] 2.5.8 Implement late fee application logic ✅ March 24, 2026
-- [ ] 2.5.9 Add unit tests for Governance Service (80%+ coverage)
+- [x] 2.5.9 Add unit tests for Governance Service (80%+ coverage) ✅ March 24, 2026
 
 ### Task Group 2.6: Notification Service Implementation
 **Design Reference:** Section 2.2.5 - Notification Service
