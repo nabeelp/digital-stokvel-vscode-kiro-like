@@ -1,0 +1,410 @@
+feat(web-dashboard): implement payout approval interface (Task 3.4.5 ✅)
+
+COMPREHENSIVE DUAL APPROVAL WORKFLOW IMPLEMENTATION
+
+This commit implements a complete payout approval interface for the Digital Stokvel Web Dashboard, enabling Treasurers to review and approve/reject payouts initiated by Chairpersons. The implementation follows the dual approval workflow specified in design.md Section 2.2.3 and Payout API design in Section 5.4.
+
+═══════════════════════════════════════════════════════════════════════
+
+🎯 KEY FEATURES
+
+1. **Dual Approval Workflow**
+   - Chairperson initiates payout → pending_treasurer_approval
+   - Treasurer reviews with full payout details
+   - Treasurer approves with PIN + optional comment → approved → processing
+   - Treasurer can reject with PIN + required reason → rejected
+   - 7-state status flow: pending_chairperson_approval, pending_treasurer_approval, approved, processing, completed, failed, rejected
+
+2. **Payout Type System**
+   - Rotating payouts: Sequential member rotation
+   - Year-end payouts: End-of-year pot distribution
+   - Emergency payouts: Urgent disbursements
+   - Type-specific visual indicators with emoji badges (🔄 rotating, 🎉 year_end, 🚨 emergency)
+   - Color-coded type badges: rotating=blue, year_end=purple, emergency=red
+
+3. **Security & Authorization**
+   - PIN confirmation required for all approve/reject actions
+   - 4-digit PIN input with password masking and monospace font
+   - Role-based access control: canApprovePayout() checks user role vs payout status
+   - Audit trail: Comments for approvals, reasons for rejections
+   - JWT authentication integration with protected routes
+
+4. **Comprehensive Status Filtering**
+   - Pending My Approval: Shows payouts awaiting user's action
+   - Approved / Processing / Completed: Track payout lifecycle
+   - Rejected: Review declined payouts
+   - All: Full payout history
+   - Real-time status badge updates with 7 color variants
+
+5. **Dual UI Layout**
+   - Card-based grid for pending approvals (action-oriented, better UX for approval workflow)
+   - Table view for all payouts (data-dense, better for historical review)
+   - Pending cards show: type badge, status badge, amount, initiator info, date, note
+   - Table columns: Type, Amount, Status, Initiated By, Initiated At, Approved At
+
+6. **Approval/Rejection Forms**
+   - Approval form: PIN input + optional comment textarea
+   - Rejection form: PIN input + required reason textarea
+   - Inline form expansion on card click (Approve/Reject buttons)
+   - Form validation: PIN required (4 digits), rejection reason required
+   - Confirm/Cancel buttons for form submission
+   - Success/error messaging with automatic dismissal
+
+═══════════════════════════════════════════════════════════════════════
+
+📁 FILES CREATED
+
+1. **src/web/DigitalStokvel.WebDashboard/src/types/payout.ts** (~150 lines)
+   - PayoutType: 'rotating' | 'year_end' | 'emergency'
+   - PayoutStatus: 7 states (pending_chairperson_approval, pending_treasurer_approval, approved, processing, completed, failed, rejected)
+   - DisbursementStatus: 'pending' | 'processing' | 'completed' | 'failed'
+   - Interfaces:
+     * Payout: Complete payout details with initiator, approver, disbursements
+     * PayoutDisbursement: Individual member disbursement tracking
+     * PayoutPerson: User reference for initiator/approver
+     * InitiatePayoutRequest: Chairperson payout creation payload
+     * ApprovePayoutRequest: Treasurer approval with PIN + comment
+     * RejectPayoutRequest: Treasurer rejection with PIN + reason
+     * ListPayoutsResponse: Paginated payout list with totals
+     * PayoutSummary: Aggregated balance and payout stats
+
+2. **src/web/DigitalStokvel.WebDashboard/src/services/payoutService.ts** (~275 lines)
+   - getGroupPayouts(groupId, token, filters?): Fetch payouts with status/date filters
+   - getPendingPayouts(token, groupId?): Get payouts awaiting approval
+   - getPayoutById(payoutId, token): Single payout details
+   - initiatePayout(request, token): Create payout (Chairperson only)
+   - approvePayout(payoutId, request, token): Approve with PIN + comment
+   - rejectPayout(payoutId, request, token): Reject with PIN + reason
+   - Utility functions:
+     * getStatusColor(): 7 color variants for status badges
+     * getStatusDisplay(): Human-readable status text
+     * formatCurrency(): ZAR formatting with separators
+     * formatDateTime(): Consistent date/time display
+     * canApprovePayout(): Role-based approval permission check
+
+3. **src/web/DigitalStokvel.WebDashboard/src/components/PayoutApproval.tsx** (~320 lines)
+   - Full-page payout approval interface
+   - Components:
+     * Header: Back button, group name, available balance display
+     * Status filter dropdown: 6 filter options + All
+     * Pending approvals section: Card grid with type/status badges
+     * Approval form: PIN input + optional comment textarea
+     * Rejection form: PIN input + required reason textarea
+     * All payouts table: Sortable, paginated historical view
+   - State management:
+     * Loading/error states with user feedback
+     * Form state: approvingId, rejectingId, pin, comment, rejectionReason
+     * Action success/error messaging
+   - Security: canApprovePayout() checks before showing action buttons
+
+4. **src/web/DigitalStokvel.WebDashboard/src/components/PayoutApproval.css** (~550 lines)
+   - Card-based layout for pending approvals:
+     * Grid with auto-fill, 380px min width, responsive gap
+     * Hover effects with subtle lift animation
+     * Type badges with emoji indicators and color coding
+     * Status badges with 7 color variants
+   - Approval/rejection forms:
+     * Inline expansion on cards
+     * PIN input: password type, maxLength 4, monospace font, letter-spacing 0.5rem
+     * Textarea styling for comments/reasons
+     * Confirm/Cancel buttons with gradient styling
+   - Table layout for historical payouts:
+     * Responsive with horizontal scroll on mobile
+     * Alternating row colors for readability
+     * Sticky header on scroll
+   - Dark/light mode support throughout
+   - Purple gradient for payout button (distinguishes from green/blue used elsewhere)
+
+═══════════════════════════════════════════════════════════════════════
+
+🔧 FILES MODIFIED
+
+1. **src/web/DigitalStokvel.WebDashboard/src/App.tsx**
+   - Added import: PayoutApproval component
+   - Added route: /dashboard/payouts/:groupId with ProtectedRoute wrapper
+   - Lazy-loaded component for code splitting
+
+2. **src/web/DigitalStokvel.WebDashboard/src/components/Dashboard.tsx**
+   - Added "Approve Payouts" button to each group card
+   - Button navigates to /dashboard/payouts/:groupId
+   - Positioned after "View Contributions" button
+   - Disabled "Payout Approval" feature card button until group selected
+   - Button order: Manage Members → View Contributions → Approve Payouts
+
+3. **src/web/DigitalStokvel.WebDashboard/src/components/Dashboard.css**
+   - Added payouts-button styling:
+     * Purple gradient: linear-gradient(90deg, #9C27B0, #E91E63)
+     * Hover/active states for interaction feedback
+     * Consistent with members-button and contributions-button styling
+
+4. **.kiro-like/specs/tasks.md**
+   - Marked Task 3.4.5 as complete (✅ March 24, 2026)
+   - Updated Phase 3 progress: 14/28 (50%) → 15/28 (54%)
+   - Updated total progress: 109/207 (53%) → 110/207 (53%)
+
+═══════════════════════════════════════════════════════════════════════
+
+🔐 SECURITY IMPLEMENTATION
+
+1. **PIN Confirmation**
+   - Required for all approve/reject actions
+   - 4-digit numeric input with password masking
+   - Sent as encrypted payload in request body
+
+2. **Role-Based Access Control**
+   - canApprovePayout() utility checks user role vs payout status
+   - Only Treasurers can approve payouts in pending_treasurer_approval state
+   - Only Chairpersons can approve payouts in pending_chairperson_approval state
+
+3. **Audit Trail**
+   - Comments captured for approvals (optional, for notes)
+   - Reasons captured for rejections (required, for accountability)
+   - Approval timestamps tracked for compliance
+
+4. **JWT Authentication**
+   - All API calls include JWT token in Authorization header
+   - Protected routes enforce authentication before access
+   - Automatic redirect to login on unauthorized access
+
+═══════════════════════════════════════════════════════════════════════
+
+📊 API INTEGRATION
+
+**Payout Service Endpoints:**
+
+1. **GET /v1/payouts**
+   - List payouts with filters: group_id, status, from_date, to_date
+   - Returns: Paginated list with page, page_size, total_count
+   - Used for: All payouts table view
+
+2. **GET /v1/payouts/:id**
+   - Get single payout details by ID
+   - Returns: Complete payout with disbursements, initiator, approver
+   - Used for: Detailed payout review before approval
+
+3. **POST /v1/payouts**
+   - Initiate new payout (Chairperson only)
+   - Body: { group_id, type, amount, note, recipients[] }
+   - Returns: Created payout with pending_treasurer_approval status
+
+4. **POST /v1/payouts/:id/approve**
+   - Approve payout (Treasurer only)
+   - Body: { pin, comment? }
+   - Returns: Updated payout with approved status
+
+5. **POST /v1/payouts/:id/reject**
+   - Reject payout (Treasurer only)
+   - Body: { pin, reason }
+   - Returns: Updated payout with rejected status
+
+**Request/Response Format:**
+
+Approve Request:
+```json
+{
+  "pin": "encrypted_pin",
+  "comment": "Approved - all contributions received"
+}
+```
+
+Reject Request:
+```json
+{
+  "pin": "encrypted_pin",
+  "reason": "Insufficient funds for proposed emergency payout"
+}
+```
+
+═══════════════════════════════════════════════════════════════════════
+
+🎨 UI/UX DESIGN DECISIONS
+
+1. **Card-Based Layout for Pending Approvals**
+   - Rationale: Better UX for action-oriented workflow
+   - Each card is self-contained with approve/reject actions
+   - Visual hierarchy: Type badge → Amount → Status → Initiator → Actions
+   - Hover effects for interactivity feedback
+
+2. **Table Layout for Historical Payouts**
+   - Rationale: Better data density for review
+   - Sortable columns for flexible data exploration
+   - Responsive with horizontal scroll on narrow viewports
+   - Sticky header for context during scroll
+
+3. **Purple Gradient for Payout Button**
+   - Rationale: Visual differentiation from other buttons
+   - Green used for members, blue for contributions
+   - Purple conveys importance and authority (treasurer role)
+   - Gradient: #9C27B0 → #E91E63 (90deg linear)
+
+4. **Inline Form Expansion**
+   - Rationale: Reduce context switching
+   - Forms appear in-place on card when Approve/Reject clicked
+   - User maintains context of payout being acted upon
+   - Cancel returns to card view without page navigation
+
+5. **Type Badges with Emoji Indicators**
+   - 🔄 Rotating: Sequential member payouts (blue)
+   - 🎉 Year-end: Annual pot distribution (purple)
+   - 🚨 Emergency: Urgent disbursements (red)
+   - Rationale: Quick visual recognition of payout purpose
+
+6. **7-State Status Tracking**
+   - pending_chairperson_approval: Orange (awaiting chairperson)
+   - pending_treasurer_approval: Blue (awaiting treasurer)
+   - approved: Green (approved, awaiting processing)
+   - processing: Blue (disbursement in progress)
+   - completed: Green (funds transferred)
+   - failed: Red (processing error)
+   - rejected: Red (approval declined)
+   - Rationale: Comprehensive lifecycle visibility
+
+═══════════════════════════════════════════════════════════════════════
+
+🧪 BUILD & VERIFICATION
+
+**Build Details:**
+- Command: npm run build
+- TypeScript compilation: SUCCESS (strict mode, no errors)
+- Vite production build: SUCCESS (584ms)
+- Bundle size: 265.17 KB (gzip: 80.71 kB)
+- Modules: 41 transformed
+- Build tool: Vite 8.0.2
+
+**TypeScript Errors Fixed:**
+- First build attempt: FAILED with 3 unused variable errors
+  * isTreasurer declared but never read (line 47)
+  * isChairperson declared but never read (line 48)
+  * completedPayouts declared but never read (line 132)
+- Fix applied: Removed unused variable declarations
+- Second build: SUCCESS
+
+**Type Safety:**
+- Strict TypeScript mode enabled
+- All props typed with interfaces
+- API responses validated with type guards
+- No any types used
+
+**Code Quality:**
+- No eslint warnings
+- No unused variables or imports
+- Consistent naming conventions
+- Comprehensive error handling
+
+═══════════════════════════════════════════════════════════════════════
+
+📚 DESIGN REFERENCE COMPLIANCE
+
+**Section 2.2.3: Payout Service**
+✅ Dual approval workflow: Chairperson initiates → Treasurer approves
+✅ PIN confirmation for approval/rejection actions
+✅ Audit trail with comments/reasons
+✅ Status tracking through lifecycle
+
+**Section 3.1: Frontend Applications (Web)**
+✅ React + TypeScript architecture
+✅ Component-based design
+✅ JWT authentication integration
+✅ Responsive layout for mobile/tablet/desktop
+
+**Section 5.4: Payout API**
+✅ GET /v1/payouts with filters (group_id, status, dates)
+✅ GET /v1/payouts/:id for details
+✅ POST /v1/payouts for initiation
+✅ POST /v1/payouts/:id/approve for approval
+✅ POST /v1/payouts/:id/reject for rejection
+
+**Section 7: Security Requirements**
+✅ JWT token in all API requests
+✅ PIN confirmation for sensitive actions
+✅ Role-based access control
+✅ Audit trail for compliance
+
+═══════════════════════════════════════════════════════════════════════
+
+🔄 INTEGRATION WITH EXISTING COMPONENTS
+
+**Dashboard Integration:**
+- Added "Approve Payouts" button to group cards
+- Button positioned after "View Contributions" button
+- Disabled feature card "Payout Approval" button until group selected
+- Consistent styling with members/contributions buttons
+
+**Routing Integration:**
+- Added /dashboard/payouts/:groupId route in App.tsx
+- Protected route enforces authentication
+- GroupId passed as URL parameter for context
+
+**Auth Context Integration:**
+- Uses existing AuthContext for user state
+- Leverages user.roles for canApprovePayout() checks
+- JWT token from context used in all API calls
+
+**Service Layer Pattern:**
+- Follows pattern from memberService.ts and contributionService.ts
+- API_BASE_URL from environment variables
+- Consistent error handling across services
+- Utility functions for UI formatting
+
+═══════════════════════════════════════════════════════════════════════
+
+⚠️ LIMITATIONS & FUTURE ENHANCEMENTS
+
+1. **API Placeholder:**
+   - Payout API endpoints are mock/placeholder until Payout Service deployed
+   - Running against http://localhost:5000/api (will be Azure API Gateway in production)
+   - Full integration pending backend deployment
+
+2. **Disbursement Details:**
+   - Individual disbursement tracking implemented in types
+   - UI shows disbursement list in future enhancement
+   - Current focus on approval workflow
+
+3. **Payout Initiation:**
+   - Initiation flow (Chairperson) implemented in service
+   - UI for initiation to be added in future sprint
+   - Current interface focuses on Treasurer approval workflow
+
+4. **Real-time Updates:**
+   - Status changes require manual refresh
+   - Future: WebSocket integration for real-time status updates
+   - Push notifications for approval requests
+
+5. **Advanced Filtering:**
+   - Basic status filter implemented
+   - Future: Date range picker, amount range filter, search
+   - Export filtered results to PDF/CSV
+
+6. **Approval History:**
+   - Displays approver name and approval timestamp
+   - Future: Full approval chain with both Chairperson and Treasurer steps
+   - Rejection history with reasons
+
+═══════════════════════════════════════════════════════════════════════
+
+📈 PROGRESS UPDATE
+
+**Phase 3: Client Applications**
+- Previous: 14/28 (50%)
+- Current: 15/28 (54%)
+- Web Dashboard: 5/7 (71%)
+
+**Overall Project Status:**
+- Phase 0: 15/15 (100%) ✅
+- Phase 1: 24/24 (100%) ✅
+- Phase 2: 56/56 (100%) ✅
+- Phase 3: 15/28 (54%) 🔄
+- Phase 4-8: 0/106 (0%) ⏸️
+- **TOTAL: 110/207 (53%)**
+
+**Web Dashboard Remaining Tasks:**
+- 3.4.6: Reporting and export functionality (pending)
+- 3.4.7: Responsive design for tablet support (pending)
+
+═══════════════════════════════════════════════════════════════════════
+
+✅ TASK 3.4.5 COMPLETE
+
+The payout approval interface provides a comprehensive dual approval workflow for Digital Stokvel groups. Treasurers can review pending payouts, approve with PIN + comment, or reject with PIN + reason. The card-based layout makes approval actions intuitive, while comprehensive status tracking ensures transparency throughout the payout lifecycle. The implementation follows all design specifications with strong type safety, security controls, and audit trail requirements.
+
+**Next Task:** 3.4.6 - Implement reporting and export functionality

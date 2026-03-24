@@ -4,6 +4,7 @@ import { Login } from './components/Login'
 import { Dashboard } from './components/Dashboard'
 import MemberManagement from './components/MemberManagement'
 import ContributionTracking from './components/ContributionTracking'
+import PayoutApproval from './components/PayoutApproval'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import './App.css'
 
@@ -34,6 +35,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ContributionTracking />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/payouts/:groupId"
+            element={
+              <ProtectedRoute>
+                <PayoutApproval />
               </ProtectedRoute>
             }
           />

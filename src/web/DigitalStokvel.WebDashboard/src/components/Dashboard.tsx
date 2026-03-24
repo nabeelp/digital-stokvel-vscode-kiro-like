@@ -80,7 +80,7 @@ export function Dashboard() {
             <div className="feature-icon">✅</div>
             <h3>Payout Approval</h3>
             <p>Approve and manage group payouts</p>
-            <button className="feature-button">Approve Payouts</button>
+            <button className="feature-button" disabled>Select a group below</button>
           </div>
 
           <div className="feature-card">
@@ -138,6 +138,12 @@ export function Dashboard() {
                     onClick={() => navigate(`/dashboard/contributions/${group.id}`)}
                   >
                     View Contributions
+                  </button>
+                  <button 
+                    className="payouts-button"
+                    onClick={() => navigate(`/dashboard/payouts/${group.id}`)}
+                  >
+                    Approve Payouts
                   </button>
                 </div>
               ))}
