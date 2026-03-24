@@ -16,6 +16,7 @@
     <Project Path="src/shared/DigitalStokvel.Common/DigitalStokvel.Common.csproj" />
     <Project Path="src/shared/DigitalStokvel.Domain/DigitalStokvel.Domain.csproj" />
     <Project Path="src/shared/DigitalStokvel.Infrastructure/DigitalStokvel.Infrastructure.csproj" />
+    <Project Path="src/shared/DigitalStokvel.Shared.Authentication/DigitalStokvel.Shared.Authentication.csproj" />
   </Folder>
   <Folder Name="/tests/" />
   <Folder Name="/tests/unit/">
