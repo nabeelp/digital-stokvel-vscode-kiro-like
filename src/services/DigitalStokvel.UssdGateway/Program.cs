@@ -1,4 +1,5 @@
 using DigitalStokvel.UssdGateway.Data;
+using DigitalStokvel.UssdGateway.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -87,7 +88,8 @@ try
         .AddRedis(redisConnectionString, name: "redis");
 
     // Register application services
-    // Services will be added as we implement them in subsequent tasks
+    builder.Services.AddScoped<IUssdSessionService, UssdSessionService>();
+    builder.Services.AddScoped<IUssdMenuService, UssdMenuService>();
 
     var app = builder.Build();
 
