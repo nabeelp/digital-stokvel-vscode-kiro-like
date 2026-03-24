@@ -261,11 +261,30 @@
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
+  margin-bottom: 0.5rem;
 }
 
 .manage-button:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.contributions-button {
+  width: 100%;
+  padding: 0.75rem;
+  background: linear-gradient(90deg, #2196F3, #4CAF50);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.contributions-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
 }
 
 .loading-container {

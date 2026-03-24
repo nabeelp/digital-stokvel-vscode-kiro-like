@@ -73,7 +73,7 @@ export function Dashboard() {
             <div className="feature-icon">💰</div>
             <h3>Contribution Tracking</h3>
             <p>Monitor group contributions and payments</p>
-            <button className="feature-button">View Contributions</button>
+            <button className="feature-button" disabled>Select a group below</button>
           </div>
 
           <div className="feature-card">
@@ -132,6 +132,12 @@ export function Dashboard() {
                     onClick={() => navigate(`/dashboard/members/${group.id}`)}
                   >
                     Manage Members
+                  </button>
+                  <button 
+                    className="contributions-button"
+                    onClick={() => navigate(`/dashboard/contributions/${group.id}`)}
+                  >
+                    View Contributions
                   </button>
                 </div>
               ))}

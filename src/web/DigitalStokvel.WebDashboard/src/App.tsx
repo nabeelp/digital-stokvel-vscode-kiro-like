@@ -3,6 +3,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import { Login } from './components/Login'
 import { Dashboard } from './components/Dashboard'
 import MemberManagement from './components/MemberManagement'
+import ContributionTracking from './components/ContributionTracking'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import './App.css'
 
@@ -25,6 +26,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <MemberManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/contributions/:groupId"
+            element={
+              <ProtectedRoute>
+                <ContributionTracking />
               </ProtectedRoute>
             }
           />
