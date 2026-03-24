@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './contexts/AuthContext'
 import { Login } from './components/Login'
 import { Dashboard } from './components/Dashboard'
+import MemberManagement from './components/MemberManagement'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import './App.css'
 
@@ -16,6 +17,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/members/:groupId"
+            element={
+              <ProtectedRoute>
+                <MemberManagement />
               </ProtectedRoute>
             }
           />
