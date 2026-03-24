@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "southafricanorth"
+    },
+    "environment": {
+      "value": "Staging"
+    },
+    "baseName": {
+      "value": "digitalstokvel"
+    },
+    "postgresAdminLogin": {
+      "value": "stokvel_admin"
+    },
+    "deployAks": {
+      "value": true
+    },
+    "deployPostgres": {
+      "value": true
+    },
+    "deployRedis": {
+      "value": true
+    },
+    "deployServiceBus": {
+      "value": true
+    },
+    "deployStorage": {
+      "value": true
+    },
+    "deployMonitoring": {
+      "value": true
+    }
+  }
+}
