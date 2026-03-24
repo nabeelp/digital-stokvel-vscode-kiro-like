@@ -336,6 +336,26 @@
   color: #4CAF50;
 }
 
+/* Tablet optimizations (768px - 1024px) */
+@media (max-width: 1024px) {
+  .dashboard-main {
+    padding: 2rem 1.5rem;
+  }
+
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .groups-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .header-content {
+    padding: 0 1rem;
+  }
+}
+
+/* Mobile optimizations (< 768px) */
 @media (max-width: 768px) {
   .dashboard-header {
     padding: 1rem 1.5rem;
@@ -360,6 +380,10 @@
   }
 
   .features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .groups-grid {
     grid-template-columns: 1fr;
   }
 }

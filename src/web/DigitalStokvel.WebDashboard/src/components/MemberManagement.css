@@ -323,7 +323,39 @@
   }
 }
 
-/* Responsive Design */
+/* Tablet optimizations (768px - 1024px) */
+@media (max-width: 1024px) {
+  .member-management {
+    padding: 1.5rem;
+  }
+
+  .management-header h1 {
+    font-size: 1.75rem;
+  }
+
+  .group-info {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .form-row {
+    gap: 0.75rem;
+  }
+
+  .form-row input {
+    min-width: 200px;
+  }
+
+  .members-table {
+    font-size: 0.95rem;
+  }
+
+  .members-table th,
+  .members-table td {
+    padding: 0.875rem;
+  }
+}
+
+/* Mobile optimizations (< 768px) */
 @media (max-width: 768px) {
   .member-management {
     padding: 1rem;
