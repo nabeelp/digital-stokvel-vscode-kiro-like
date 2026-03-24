@@ -1,21 +1,29 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from './contexts/AuthContext'
+import { Login } from './components/Login'
+import { Dashboard } from './components/Dashboard'
+import { ProtectedRoute } from './components/ProtectedRoute'
 import './App.css'
 
 function App() {
   return (
-    <Router>
-      <div className="app">
-        <header className="app-header">
-          <h1>Digital Stokvel</h1>
-          <p className="subtitle">Chairperson Dashboard</p>
-        </header>
-        <main className="app-main">
-          <Routes>
-            <Route path="/" element={<Home />} />
-          </Routes>
-        </main>
-      </div>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/home" element={<Home />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   )
 }
 
