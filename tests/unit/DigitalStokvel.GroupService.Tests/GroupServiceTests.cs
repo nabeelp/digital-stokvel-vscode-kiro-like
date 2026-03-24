@@ -2,6 +2,7 @@ using DigitalStokvel.GroupService.Data;
 using DigitalStokvel.GroupService.DTOs;
 using DigitalStokvel.GroupService.Entities;
 using DigitalStokvel.GroupService.Services;
+using DigitalStokvel.Infrastructure.ExternalServices;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,7 @@ public class GroupServiceTests : IDisposable
 {
     private readonly ApplicationDbContext _context;
     private readonly Mock<ILogger<Services.GroupService>> _loggerMock;
+    private readonly Mock<ICbsClient> _cbsClientMock;
     private readonly Services.GroupService _service;
 
     public GroupServiceTests()
@@ -28,7 +30,14 @@ public class GroupServiceTests : IDisposable
 
         _context = new ApplicationDbContext(options);
         _loggerMock = new Mock<ILogger<Services.GroupService>>();
-        _service = new Services.GroupService(_context, _loggerMock.Object);
+        _cbsClientMock = new Mock<ICbsClient>();
+        
+        // Setup default CBS client behavior
+        _cbsClientMock
+            .Setup(c => c.CreateGroupAccountAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Guid groupId, string accountName, CancellationToken _) => $"CBS{groupId.ToString("N").Substring(0, 10).ToUpper()}");
+        
+        _service = new Services.GroupService(_context, _loggerMock.Object, _cbsClientMock.Object);
     }
 
     public void Dispose()
@@ -77,9 +86,16 @@ public class GroupServiceTests : IDisposable
         result.ContributionAmount.Should().Be(500.00m);
         result.MemberCount.Should().Be(3); // Creator + 2 invited
         result.AccountNumber.Should().NotBeNullOrEmpty();
-        result.AccountNumber.Should().StartWith("400");
+        result.AccountNumber.Should().StartWith("CBS"); // CBS-generated account number
         result.InvitationLinks.Should().HaveCount(2);
         result.InvitationLinks.All(i => !string.IsNullOrEmpty(i.InviteToken)).Should().BeTrue();
+        
+        // Verify CBS client was called
+        _cbsClientMock.Verify(c => c.CreateGroupAccountAsync(
+            It.IsAny<Guid>(), 
+            It.Is<string>(name => name.Contains("Test Stokvel")), 
+            It.IsAny<CancellationToken>()), 
+            Times.Once);
 
         // Verify database state
         var group = await _context.Groups.FirstOrDefaultAsync();
@@ -94,6 +110,7 @@ public class GroupServiceTests : IDisposable
         account.Should().NotBeNull();
         account!.Balance.Should().Be(0);
         account.InterestRate.Should().Be(4.5m);
+        account.AccountNumber.Should().StartWith("CBS");
     }
 
     [Fact]
@@ -162,6 +179,39 @@ public class GroupServiceTests : IDisposable
         chairperson!.Role.Should().Be(MemberRole.Chairperson);
         chairperson.Status.Should().Be(MemberStatus.Active);
         chairperson.InviteAcceptedAt.Should().NotBeNull();
+    }
+    
+    [Fact]
+    public async Task CreateGroupAsync_CbsFailure_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var creatorUserId = Guid.NewGuid();
+        var request = new CreateGroupRequest
+        {
+            Name = "CBS Failure Test",
+            GroupType = "SavingsPot",
+            ContributionAmount = 500.00m,
+            ContributionFrequency = "Monthly",
+            PayoutSchedule = new PayoutScheduleDto { Type = "RotatingBasis" }
+        };
+        
+        // Setup CBS client to throw exception
+        _cbsClientMock
+            .Setup(c => c.CreateGroupAccountAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new CbsClientException("CBS system unavailable"));
+
+        // Act & Assert
+        var act = async () => await _service.CreateGroupAsync(request, creatorUserId);
+        
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*Unable to create banking account*");
+        
+        // Verify CBS client was called
+        _cbsClientMock.Verify(c => c.CreateGroupAccountAsync(
+            It.IsAny<Guid>(), 
+            It.IsAny<string>(), 
+            It.IsAny<CancellationToken>()), 
+            Times.Once);
     }
 
     #endregion

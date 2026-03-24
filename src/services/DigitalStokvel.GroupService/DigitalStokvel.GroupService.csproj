@@ -38,6 +38,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\shared\DigitalStokvel.Domain\DigitalStokvel.Domain.csproj" />
     <ProjectReference Include="..\..\shared\DigitalStokvel.Common\DigitalStokvel.Common.csproj" />
+    <ProjectReference Include="..\..\shared\DigitalStokvel.Infrastructure\DigitalStokvel.Infrastructure.csproj" />
     <ProjectReference Include="..\..\shared\DigitalStokvel.Shared.Authentication\DigitalStokvel.Shared.Authentication.csproj" />
   </ItemGroup>
 

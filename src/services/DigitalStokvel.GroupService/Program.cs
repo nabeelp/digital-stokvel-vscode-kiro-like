@@ -1,5 +1,6 @@
 using DigitalStokvel.GroupService.Data;
 using DigitalStokvel.GroupService.Services;
+using DigitalStokvel.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -78,6 +79,9 @@ try
     // Add Health Checks
     builder.Services.AddHealthChecks()
         .AddDbContextCheck<ApplicationDbContext>();
+
+    // Register external service clients
+    builder.Services.AddCbsClient(builder.Configuration);
 
     // Register application services
     builder.Services.AddScoped<IGroupService, DigitalStokvel.GroupService.Services.GroupService>();

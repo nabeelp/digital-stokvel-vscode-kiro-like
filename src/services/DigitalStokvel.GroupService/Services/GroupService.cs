@@ -1,6 +1,7 @@
 using DigitalStokvel.GroupService.Data;
 using DigitalStokvel.GroupService.DTOs;
 using DigitalStokvel.GroupService.Entities;
+using DigitalStokvel.Infrastructure.ExternalServices;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
@@ -13,11 +14,16 @@ public class GroupService : IGroupService
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<GroupService> _logger;
+    private readonly ICbsClient _cbsClient;
 
-    public GroupService(ApplicationDbContext context, ILogger<GroupService> logger)
+    public GroupService(
+        ApplicationDbContext context, 
+        ILogger<GroupService> logger,
+        ICbsClient cbsClient)
     {
         _context = context;
         _logger = logger;
+        _cbsClient = cbsClient;
     }
 
     /// <inheritdoc/>
@@ -116,12 +122,32 @@ public class GroupService : IGroupService
             }
         }
 
-        // Create savings account (simulated - in real system would call Core Banking API)
+        // Create savings account in Core Banking System
+        string cbsAccountNumber;
+        try
+        {
+            _logger.LogInformation("Creating CBS account for group '{GroupName}' (ID: {GroupId})", request.Name, group.Id);
+            
+            cbsAccountNumber = await _cbsClient.CreateGroupAccountAsync(
+                group.Id, 
+                $"STOKVEL-{request.Name}");
+            
+            _logger.LogInformation("CBS account created successfully: {AccountNumber} for group {GroupId}", 
+                cbsAccountNumber, group.Id);
+        }
+        catch (CbsClientException ex)
+        {
+            _logger.LogError(ex, "Failed to create CBS account for group {GroupId}: {ErrorMessage}", 
+                group.Id, ex.Message);
+            throw new InvalidOperationException(
+                "Unable to create banking account for the group. Please try again later.", ex);
+        }
+
         var savingsAccount = new GroupSavingsAccount
         {
             Id = Guid.NewGuid(),
             GroupId = group.Id,
-            AccountNumber = GenerateAccountNumber(),
+            AccountNumber = cbsAccountNumber,
             Balance = 0,
             TotalContributions = 0,
             TotalInterestEarned = 0,

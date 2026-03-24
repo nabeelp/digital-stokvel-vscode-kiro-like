@@ -31,6 +31,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\services\DigitalStokvel.GroupService\DigitalStokvel.GroupService.csproj" />
+    <ProjectReference Include="..\..\..\src\shared\DigitalStokvel.Infrastructure\DigitalStokvel.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
