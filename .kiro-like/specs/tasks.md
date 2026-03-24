@@ -17,7 +17,7 @@ This document breaks down the Digital Stokvel Banking implementation into sequen
 |-------|--------|-----------|------------|----------|
 | **Phase 0: Foundation & Setup** | Complete | 15/15 (100%) | March 24, 2026 | March 24, 2026 |
 | **Phase 1: Core Infrastructure & Data Layer** | Complete | 24/24 (100%) | March 24, 2026 | March 24, 2026 |
-| **Phase 2: Backend Services & APIs** | In Progress | 8/42 (19%) | March 24, 2026 | TBD |
+| **Phase 2: Backend Services & APIs** | In Progress | 18/42 (43%) | March 24, 2026 | TBD |
 | **Phase 3: Client Applications** | Not Started | 0/28 (0%) | TBD | TBD |
 | **Phase 4: Integration & External Services** | Not Started | 0/18 (0%) | TBD | TBD |
 | **Phase 5: Security & Compliance** | Not Started | 0/21 (0%) | TBD | TBD |
@@ -108,7 +108,7 @@ This document breaks down the Digital Stokvel Banking implementation into sequen
 ## Phase 2: Backend Services & APIs
 **Duration:** 5 weeks (Weeks 6-10)  
 **Design References:** Section 2.2 (Application Services), Section 5 (API Design)  
-**Status:** In Progress (8/42 completed)
+**Status:** In Progress (18/42 completed - 43%)
 
 ### Task Group 2.1: API Gateway & Authentication Service
 **Design Reference:** Section 2.1 - API Gateway Layer, Section 7.1 - Authentication
@@ -125,16 +125,16 @@ This document breaks down the Digital Stokvel Banking implementation into sequen
 ### Task Group 2.2: Group Service Implementation
 **Design Reference:** Section 2.2.1 - Group Service, Section 5.2 - Group Management API
 
-- [ ] 2.2.1 Create Group Service .NET project structure
-- [ ] 2.2.2 Implement POST /groups endpoint (create group)
-- [ ] 2.2.3 Implement GET /groups/{id} endpoint
-- [ ] 2.2.4 Implement GET /users/me/groups endpoint
-- [ ] 2.2.5 Implement member invitation logic
-- [ ] 2.2.6 Implement role assignment (Chairperson, Treasurer, Secretary)
-- [ ] 2.2.7 Implement group constitution builder
-- [ ] 2.2.8 Add Entity Framework DbContext for Group entities
-- [ ] 2.2.9 Implement group validation rules
-- [ ] 2.2.10 Add unit tests for Group Service (80%+ coverage)
+- [x] 2.2.1 Create Group Service .NET project structure ✅ March 24, 2026
+- [x] 2.2.2 Implement POST /groups endpoint (create group) ✅ March 24, 2026
+- [x] 2.2.3 Implement GET /groups/{id} endpoint ✅ March 24, 2026
+- [x] 2.2.4 Implement GET /users/me/groups endpoint ✅ March 24, 2026
+- [x] 2.2.5 Implement member invitation logic ✅ March 24, 2026
+- [x] 2.2.6 Implement role assignment (Chairperson, Treasurer, Secretary) ✅ March 24, 2026
+- [x] 2.2.7 Implement group constitution builder ✅ March 24, 2026
+- [x] 2.2.8 Add Entity Framework DbContext for Group entities ✅ March 24, 2026
+- [x] 2.2.9 Implement group validation rules ✅ March 24, 2026
+- [x] 2.2.10 Add unit tests for Group Service (80%+ coverage) ✅ March 24, 2026
 
 ### Task Group 2.3: Contribution Service Implementation
 **Design Reference:** Section 2.2.2 - Contribution Service, Section 5.3 - Contribution API
