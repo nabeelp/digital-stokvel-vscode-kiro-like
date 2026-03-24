@@ -22,4 +22,9 @@ public interface IApiGatewayClient
     /// Processes a contribution payment through API Gateway
     /// </summary>
     Task<ContributionPaymentResponseDto?> ProcessContributionAsync(ContributionPaymentRequestDto request, string phoneNumber);
+
+    /// <summary>
+    /// Gets the balance for a specific group
+    /// </summary>
+    Task<GroupBalanceResponseDto?> GetGroupBalanceAsync(Guid groupId, string phoneNumber);
 }

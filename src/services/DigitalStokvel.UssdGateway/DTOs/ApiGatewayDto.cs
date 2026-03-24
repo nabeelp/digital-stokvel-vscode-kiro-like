@@ -66,3 +66,15 @@ public class ReceiptDto
     public decimal Amount { get; set; }
     public decimal BalanceAfter { get; set; }
 }
+
+/// <summary>
+/// DTO for group balance response
+/// </summary>
+public class GroupBalanceResponseDto
+{
+    public Guid GroupId { get; set; }
+    public string GroupName { get; set; } = string.Empty;
+    public decimal Balance { get; set; }
+    public decimal TotalContributions { get; set; }
+    public decimal TotalPayouts { get; set; }
+}

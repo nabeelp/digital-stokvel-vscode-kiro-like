@@ -146,4 +146,40 @@ public class ApiGatewayClient : IApiGatewayClient
             return null;
         }
     }
+
+    public async Task<GroupBalanceResponseDto?> GetGroupBalanceAsync(Guid groupId, string phoneNumber)
+    {
+        try
+        {
+            _logger.LogInformation("Fetching balance for group {GroupId}, phone {PhoneNumber}",
+                groupId, phoneNumber);
+
+            var requestUri = $"/groups/{groupId}/balance";
+            
+            var response = await _httpClient.GetAsync(requestUri);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Failed to fetch balance for group {GroupId}. Status: {StatusCode}",
+                    groupId, response.StatusCode);
+                return null;
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            var result = JsonSerializer.Deserialize<GroupBalanceResponseDto>(content, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            _logger.LogInformation("Retrieved balance for group {GroupId}: R{Balance}",
+                groupId, result?.Balance ?? 0);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching balance for group {GroupId}", groupId);
+            return null;
+        }
+    }
 }

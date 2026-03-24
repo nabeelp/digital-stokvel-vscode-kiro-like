@@ -385,20 +385,78 @@ public class UssdMenuService : IUssdMenuService
     private async Task<UssdSessionResponseDto> HandleBalanceCheckAsync(
         UssdSessionRequestDto request, UssdSession session, Dictionary<string, object> context)
     {
-        _logger.LogInformation("Handling balance check for session {SessionId}", session.SessionId);
+        _logger.LogInformation("Handling balance check for session {SessionId}, Input: {Input}",
+            session.SessionId, request.UserInput);
 
-        // Placeholder implementation - will be expanded in later tasks
-        return await Task.FromResult(new UssdSessionResponseDto
+        var input = request.UserInput?.Trim();
+
+        // Handle back navigation
+        if (input == "0")
+        {
+            return await ShowMainMenuAsync(session);
+        }
+
+        // Parse group selection
+        if (!int.TryParse(input, out var groupIndex) || groupIndex < 1)
+        {
+            _logger.LogWarning("Invalid group selection for balance check: {Input}", input);
+            return await ShowBalanceCheckAsync(session, context);
+        }
+
+        // Get groups from context
+        if (!context.ContainsKey("groups"))
+        {
+            _logger.LogWarning("Groups not found in context for balance check");
+            return await ShowBalanceCheckAsync(session, context);
+        }
+
+        var groupsJson = context["groups"]?.ToString() ?? "";
+        var groups = JsonSerializer.Deserialize<List<GroupInfo>>(groupsJson);
+
+        if (groups == null || !groups.Any())
+        {
+            _logger.LogWarning("Failed to deserialize groups for balance check");
+            return await ShowBalanceCheckAsync(session, context);
+        }
+
+        // Find selected group
+        var selectedGroup = groups.FirstOrDefault(g => g.Index == groupIndex);
+        if (selectedGroup == null)
+        {
+            _logger.LogWarning("Group index {Index} not found for balance check", groupIndex);
+            return await ShowBalanceCheckAsync(session, context);
+        }
+
+        // Fetch group balance from API
+        var balanceInfo = await _apiGatewayClient.GetGroupBalanceAsync(selectedGroup.Id, session.PhoneNumber);
+
+        if (balanceInfo == null)
+        {
+            _logger.LogWarning("Failed to fetch balance for group {GroupId}", selectedGroup.Id);
+            return new UssdSessionResponseDto
+            {
+                SessionId = session.SessionId,
+                ResponseType = "END",
+                Message = GetMenuText(session.Language, "error_fetching_balance"),
+                SessionState = null
+            };
+        }
+
+        // Format and display balance information
+        var balanceMessage = string.Format(
+            GetMenuText(session.Language, "balance_info"),
+            balanceInfo.GroupName,
+            balanceInfo.Balance.ToString("F2"),
+            balanceInfo.TotalContributions.ToString("F2"),
+            balanceInfo.TotalPayouts.ToString("F2"));
+
+        return new UssdSessionResponseDto
         {
             SessionId = session.SessionId,
             ResponseType = "END",
-            Message = GetMenuText(session.Language, "feature_coming_soon"),
-            SessionState = new UssdSessionStateDto
-            {
-                MenuLevel = session.MenuLevel,
-                Context = context
-            }
-        });
+            Message = balanceMessage,
+            SessionState = null
+        };
     }
 
     private async Task<UssdSessionResponseDto> ShowGroupSelectionAsync(
@@ -458,23 +516,49 @@ public class UssdMenuService : IUssdMenuService
         _logger.LogInformation("Showing balance check for session {SessionId}", session.SessionId);
 
         context["action"] = "balance";
-        session.Context = JsonSerializer.Serialize(context);
         session.MenuLevel = 2;
 
-        // Placeholder implementation - will fetch actual balance in later tasks
-        var menuText = GetMenuText(session.Language, "balance_check");
+        // Fetch user's groups from API
+        var groupsResponse = await _apiGatewayClient.GetUserGroupsAsync(session.PhoneNumber);
 
-        return await Task.FromResult(new UssdSessionResponseDto
+        if (groupsResponse == null || !groupsResponse.Groups.Any())
+        {
+            _logger.LogWarning("No groups found for balance check, phone {PhoneNumber}", session.PhoneNumber);
+            return new UssdSessionResponseDto
+            {
+                SessionId = session.SessionId,
+                ResponseType = "END",
+                Message = GetMenuText(session.Language, "no_groups"),
+                SessionState = null
+            };
+        }
+
+        // Store groups in context for later use
+        var groupsList = groupsResponse.Groups.Select((g, index) => new { Index = index + 1, Group = g }).ToList();
+        context["groups"] = JsonSerializer.Serialize(groupsList.Select(g => new { g.Index, g.Group.Id, g.Group.Name }));
+        session.Context = JsonSerializer.Serialize(context);
+
+        // Build menu text with actual groups
+        var menuBuilder = new StringBuilder();
+        menuBuilder.AppendLine(GetMenuText(session.Language, "select_group_for_balance"));
+        
+        foreach (var item in groupsList.Take(9)) // Limit to 9 groups
+        {
+            menuBuilder.AppendLine($"{item.Index}. {item.Group.Name}");
+        }
+        menuBuilder.AppendLine("0. " + GetMenuText(session.Language, "back"));
+
+        return new UssdSessionResponseDto
         {
             SessionId = session.SessionId,
-            ResponseType = "END",
-            Message = menuText,
+            ResponseType = "CON",
+            Message = menuBuilder.ToString(),
             SessionState = new UssdSessionStateDto
             {
                 MenuLevel = session.MenuLevel,
                 Context = context
             }
-        });
+        };
     }
 
     private async Task<UssdSessionResponseDto> ShowExitMessageAsync(UssdSession session)
@@ -526,6 +610,9 @@ public class UssdMenuService : IUssdMenuService
                 ["payment_error"] = "Payment error. Please try again.",
                 ["payment_failed"] = "Payment failed. Please check your account and try again.",
                 ["payment_success"] = "Payment successful! R{0} paid.\nReceipt: {1}\nThank you!",
+                ["select_group_for_balance"] = "Select group to check balance:",
+                ["error_fetching_balance"] = "Unable to fetch balance. Please try again later.",
+                ["balance_info"] = "{0} Balance:\nBalance: R{1}\nTotal Contributions: R{2}\nTotal Payouts: R{3}\nThank you!",
                 ["balance_check"] = "Your balance: R0.00\nThank you for using Digital Stokvel.",
                 ["feature_coming_soon"] = "This feature is coming soon. Thank you for using Digital Stokvel.",
                 ["exit"] = "Thank you for using Digital Stokvel. Goodbye!"
@@ -544,6 +631,9 @@ public class UssdMenuService : IUssdMenuService
                 ["payment_error"] = "Iphutha lokhokho. Sicela uzame futhi.",
                 ["payment_failed"] = "Ukukhokha kuhlulekile. Sicela uhlole i-akhawunti yakho uzame futhi.",
                 ["payment_success"] = "Ukukhokha kuphumelele! U-R{0} ukhokhiwe.\nIrisidi: {1}\nSiyabonga!",
+                ["select_group_for_balance"] = "Khetha iqembu ukuze ubheke ibhalansi:",
+                ["error_fetching_balance"] = "Ayikwazi ukuthola ibhalansi. Sicela uzame kamuva.",
+                ["balance_info"] = "Ibhalansi ye-{0}:\nIbhalansi: R{1}\nIminikelo Eyonke: R{2}\nIzinkokhelo Eziyonke: R{3}\nSiyabonga!",
                 ["balance_check"] = "Ibhalansi yakho: R0.00\nSiyabonga ngokusebenzisa i-Digital Stokvel.",
                 ["feature_coming_soon"] = "Lesi sici sizofika maduze. Siyabonga ngokusebenzisa i-Digital Stokvel.",
                 ["exit"] = "Siyabonga ngokusebenzisa i-Digital Stokvel. Hamba kahle!"
@@ -562,6 +652,9 @@ public class UssdMenuService : IUssdMenuService
                 ["payment_error"] = "Impazamo yentlawulo. Nceda uzame kwakhona.",
                 ["payment_failed"] = "Intlawulo ayiphumelelanga. Nceda ujonga i-akhawunti yakho uphinde uzame.",
                 ["payment_success"] = "Intlawulo iphumelele! U-R{0} uhlawuliwe.\nIrisithi: {1}\nEnkosi!",
+                ["select_group_for_balance"] = "Khetha iqela ukujonga ibhalansi:",
+                ["error_fetching_balance"] = "Akukwazeki ukufumana ibhalansi. Nceda uzame kwakhona kamva.",
+                ["balance_info"] = "Ibhalansi ye-{0}:\nIbhalansi: R{1}\nIgalelo Elipheleleyo: R{2}\nIintlawulo Ezipheleleyo: R{3}\nEnkosi!",
                 ["balance_check"] = "Ibhalansi yakho: R0.00\nEnkosi ngokusebenzisa i-Digital Stokvel.",
                 ["feature_coming_soon"] = "Le nkonzo izakufika kungekudala. Enkosi ngokusebenzisa i-Digital Stokvel.",
                 ["exit"] = "Enkosi ngokusebenzisa i-Digital Stokvel. Hamba kakuhle!"
@@ -580,6 +673,9 @@ public class UssdMenuService : IUssdMenuService
                 ["payment_error"] = "Phoso ea tefello. Ka kopo leka hape.",
                 ["payment_failed"] = "Tefo e hloleha. Ka kopo hlahloba akhaonto ea hao o leke hape.",
                 ["payment_success"] = "Tefo e atlehile! R{0} e lefetsoe.\nResiti: {1}\nRea leboha!",
+                ["select_group_for_balance"] = "Kgetha sehlopha ho sheba tekanyo:",
+                ["error_fetching_balance"] = "Ha ho kgonehe ho fumana tekanyo. Ka kopo leka hape hamorao.",
+                ["balance_info"] = "Tekanyo ea {0}:\nTekanyo: R{1}\nLiabo Tsohle: R{2}\nDitefo Tsohle: R{3}\nRea leboha!",
                 ["balance_check"] = "Balance ea hao: R0.00\nRea leboha ho sebedisa Digital Stokvel.",
                 ["feature_coming_soon"] = "Sebopeho sena se tla tla haufinyane. Rea leboha ho sebedisa Digital Stokvel.",
                 ["exit"] = "Rea leboha ho sebedisa Digital Stokvel. Sala hantle!"
@@ -598,6 +694,9 @@ public class UssdMenuService : IUssdMenuService
                 ["payment_error"] = "Betalingsfout. Probeer asseblief weer.",
                 ["payment_failed"] = "Betaling het misluk. Kontroleer asseblief jou rekening en probeer weer.",
                 ["payment_success"] = "Betaling suksesvol! R{0} betaal.\nKwitansie: {1}\nDankie!",
+                ["select_group_for_balance"] = "Kies groep om balans te kyk:",
+                ["error_fetching_balance"] = "Kan nie balans kry nie. Probeer asseblief later weer.",
+                ["balance_info"] = "{0} Balans:\nBalans: R{1}\nTotale Bydraes: R{2}\nTotale Uitbetalings: R{3}\nDankie!",
                 ["balance_check"] = "Jou balans: R0.00\nDankie vir die gebruik van Digital Stokvel.",
                 ["feature_coming_soon"] = "Hierdie funksie kom binnekort. Dankie vir die gebruik van Digital Stokvel.",
                 ["exit"] = "Dankie vir die gebruik van Digital Stokvel. Totsiens!"
