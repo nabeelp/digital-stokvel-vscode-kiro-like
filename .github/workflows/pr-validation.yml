@@ -1,0 +1,271 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - main
+      - develop
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  pr-info:
+    name: PR Information
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: PR Context
+        run: |
+          echo "## Pull Request Information" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Title:** ${{ github.event.pull_request.title }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Author:** @${{ github.event.pull_request.user.login }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Source Branch:** ${{ github.event.pull_request.head.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Target Branch:** ${{ github.event.pull_request.base.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Files Changed:** ${{ github.event.pull_request.changed_files }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Additions:** +${{ github.event.pull_request.additions }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deletions:** -${{ github.event.pull_request.deletions }}" >> $GITHUB_STEP_SUMMARY
+
+  validation:
+    name: Validate PR
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Check PR title format
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          
+          # Check if PR title follows conventional commits format
+          # Examples: feat: add feature, fix: bug fix, docs: update docs
+          if [[ ! "$PR_TITLE" =~ ^(feat|fix|docs|style|refactor|perf|test|chore|ci|build)(\(.+\))?:\ .+ ]]; then
+            echo "❌ PR title must follow Conventional Commits format"
+            echo "Examples:"
+            echo "  feat: add group creation endpoint"
+            echo "  fix: resolve contribution calculation bug"
+            echo "  docs: update API documentation"
+            echo ""
+            echo "Current title: $PR_TITLE"
+            exit 1
+          fi
+          
+          echo "✅ PR title format is valid"
+      
+      - name: Check for merge conflicts
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.ref }}
+          if git merge-tree $(git merge-base HEAD origin/${{ github.event.pull_request.base.ref }}) HEAD origin/${{ github.event.pull_request.base.ref }} | grep -q '<<<<<<<'; then
+            echo "❌ Merge conflicts detected. Please resolve conflicts before merging."
+            exit 1
+          fi
+          echo "✅ No merge conflicts detected"
+
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+      
+      - name: Restore dependencies
+        run: dotnet restore
+      
+      - name: Build solution
+        run: dotnet build --configuration Release --no-restore
+      
+      - name: Run unit tests
+        run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+      
+      - name: Generate coverage report
+        if: always()
+        uses: danielpalme/ReportGenerator-GitHub-Action@5.3.11
+        with:
+          reports: './coverage/**/coverage.cobertura.xml'
+          targetdir: './coverage-report'
+          reporttypes: 'HtmlInline;Cobertura;MarkdownSummaryGithub'
+      
+      - name: Upload coverage to PR comment
+        if: always()
+        run: |
+          if [ -f ./coverage-report/SummaryGithub.md ]; then
+            echo "## Code Coverage Report" >> $GITHUB_STEP_SUMMARY
+            cat ./coverage-report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: ./coverage-report
+          retention-days: 7
+
+  code-style:
+    name: Code Style Check
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      
+      - name: Install dotnet format
+        run: dotnet tool install -g dotnet-format
+      
+      - name: Check code formatting
+        run: |
+          dotnet format --verify-no-changes --verbosity diagnostic
+          if [ $? -ne 0 ]; then
+            echo "❌ Code formatting issues detected. Run 'dotnet format' locally to fix."
+            exit 1
+          fi
+          echo "✅ Code formatting is correct"
+
+  security-check:
+    name: Security Check
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      
+      - name: Restore dependencies
+        run: dotnet restore
+      
+      - name: Check for vulnerable packages
+        run: |
+          echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          dotnet list package --vulnerable --include-transitive > vulnerable-packages.txt 2>&1
+          
+          if grep -q "has the following vulnerable packages" vulnerable-packages.txt; then
+            echo "❌ **Vulnerable packages detected!**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat vulnerable-packages.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ No vulnerable packages detected" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Check for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.pull_request.base.sha }}
+          head: ${{ github.event.pull_request.head.sha }}
+
+  size-check:
+    name: PR Size Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check PR size
+        run: |
+          CHANGED_FILES=${{ github.event.pull_request.changed_files }}
+          ADDITIONS=${{ github.event.pull_request.additions }}
+          DELETIONS=${{ github.event.pull_request.deletions }}
+          TOTAL_CHANGES=$((ADDITIONS + DELETIONS))
+          
+          echo "## PR Size Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Files Changed | $CHANGED_FILES |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lines Added | $ADDITIONS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lines Deleted | $DELETIONS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Changes | $TOTAL_CHANGES |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Warn if PR is very large
+          if [ $TOTAL_CHANGES -gt 1000 ]; then
+            echo "⚠️ **Warning:** This PR is quite large ($TOTAL_CHANGES lines changed)" >> $GITHUB_STEP_SUMMARY
+            echo "Consider breaking it into smaller, focused PRs for easier review." >> $GITHUB_STEP_SUMMARY
+          elif [ $TOTAL_CHANGES -gt 500 ]; then
+            echo "ℹ️ This PR is moderately sized ($TOTAL_CHANGES lines changed)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ This PR is a good size for review ($TOTAL_CHANGES lines changed)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  labels:
+    name: Auto Label
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    
+    steps:
+      - name: Auto-label PR
+        uses: actions/labeler@v5
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+  summary:
+    name: Validation Summary
+    runs-on: ubuntu-latest
+    needs: [validation, build-and-test, code-style, security-check, size-check]
+    if: always() && github.event.pull_request.draft == false
+    
+    steps:
+      - name: Validation Summary
+        run: |
+          echo "## PR Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| PR Validation | ${{ needs.validation.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build & Test | ${{ needs.build-and-test.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Code Style | ${{ needs.code-style.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Check | ${{ needs.security-check.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Size Check | ${{ needs.size-check.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check if any critical checks failed
+          if [[ "${{ needs.validation.result }}" == "failure" ]] || \
+             [[ "${{ needs.build-and-test.result }}" == "failure" ]] || \
+             [[ "${{ needs.security-check.result }}" == "failure" ]]; then
+            echo "❌ **PR validation failed**. Please fix the issues above." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          elif [[ "${{ needs.code-style.result }}" == "failure" ]]; then
+            echo "⚠️ **Code style issues detected**. Please run 'dotnet format' locally." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ **All validation checks passed!** This PR is ready for review." >> $GITHUB_STEP_SUMMARY
+          fi

@@ -1,0 +1,204 @@
+name: CI - Build and Test
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+      - 'release/**'
+      - 'hotfix/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+      
+      - name: Restore dependencies
+        run: dotnet restore
+      
+      - name: Build solution
+        run: dotnet build --configuration ${{ matrix.configuration }} --no-restore
+      
+      - name: Run unit tests
+        run: dotnet test --configuration ${{ matrix.configuration }} --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+      
+      - name: Upload coverage reports
+        if: matrix.configuration == 'Release'
+        uses: codecov/codecov-action@v4
+        with:
+          directory: ./coverage
+          fail_ci_if_error: false
+          verbose: true
+      
+      - name: Upload build artifacts
+        if: matrix.configuration == 'Release' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            **/bin/Release/**
+            !**/obj/**
+          retention-days: 7
+
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      
+      - name: Restore dependencies
+        run: dotnet restore
+      
+      - name: Run code analysis
+        run: dotnet build --configuration Release --no-restore /p:TreatWarningsAsErrors=false
+      
+      - name: Check for security vulnerabilities
+        run: |
+          dotnet list package --vulnerable --include-transitive 2>&1 | tee vulnerable-packages.txt
+          if grep -q "has the following vulnerable packages" vulnerable-packages.txt; then
+            echo "⚠️ Vulnerable packages detected!"
+            exit 1
+          fi
+      
+      - name: Check for deprecated packages
+        run: |
+          dotnet list package --deprecated --include-transitive 2>&1 | tee deprecated-packages.txt
+          if grep -q "has the following deprecated packages" deprecated-packages.txt; then
+            echo "⚠️ Deprecated packages detected!"
+          fi
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      security-events: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  docker-build:
+    name: Docker Build Verification
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    
+    strategy:
+      matrix:
+        service:
+          - GroupService
+          - ContributionService
+          - PayoutService
+          - GovernanceService
+          - NotificationService
+          - CreditProfileService
+          - UssdGateway
+          - ApiGateway
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build Docker image (verification only)
+        run: |
+          # Create Dockerfile if it doesn't exist (placeholder)
+          if [ ! -f "src/services/DigitalStokvel.${{ matrix.service }}/Dockerfile" ] && [ ! -f "src/gateways/DigitalStokvel.${{ matrix.service }}/Dockerfile" ]; then
+            echo "ℹ️ Dockerfile not yet created for ${{ matrix.service }}, skipping..."
+            exit 0
+          fi
+          
+          # Determine the correct path (services or gateways)
+          if [ -f "src/services/DigitalStokvel.${{ matrix.service }}/Dockerfile" ]; then
+            CONTEXT_PATH="src/services/DigitalStokvel.${{ matrix.service }}"
+          else
+            CONTEXT_PATH="src/gateways/DigitalStokvel.${{ matrix.service }}"
+          fi
+          
+          docker buildx build --platform linux/amd64 \
+            --tag digitalstokvel/${{ matrix.service }}:${{ github.sha }} \
+            --file $CONTEXT_PATH/Dockerfile \
+            --cache-from type=gha \
+            --cache-to type=gha,mode=max \
+            $CONTEXT_PATH
+
+  summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [build, code-quality, security-scan]
+    if: always()
+    
+    steps:
+      - name: Build Status Summary
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Code Quality | ${{ needs.code-quality.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Scan | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY

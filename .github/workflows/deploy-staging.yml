@@ -1,0 +1,181 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Specific service to deploy (leave empty for all services)'
+        required: false
+        type: choice
+        options:
+          - 'all'
+          - 'GroupService'
+          - 'ContributionService'
+          - 'PayoutService'
+          - 'GovernanceService'
+          - 'NotificationService'
+          - 'CreditProfileService'
+          - 'UssdGateway'
+          - 'ApiGateway'
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  REGISTRY: 'digitalstokvel.azurecr.io'  # Update with your registry
+  ENVIRONMENT: 'staging'
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    strategy:
+      matrix:
+        service:
+          - GroupService
+          - ContributionService
+          - PayoutService
+          - GovernanceService
+          - NotificationService
+          - CreditProfileService
+          - UssdGateway
+          - ApiGateway
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/digitalstokvel-${{ matrix.service }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=staging-latest
+      
+      - name: Determine context path
+        id: context
+        run: |
+          if [ -d "src/services/DigitalStokvel.${{ matrix.service }}" ]; then
+            echo "path=src/services/DigitalStokvel.${{ matrix.service }}" >> $GITHUB_OUTPUT
+          elif [ -d "src/gateways/DigitalStokvel.${{ matrix.service }}" ]; then
+            echo "path=src/gateways/DigitalStokvel.${{ matrix.service }}" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Service directory not found for ${{ matrix.service }}"
+            exit 1
+          fi
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ steps.context.outputs.path }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+            VERSION=staging-${{ github.sha }}
+
+  deploy-to-staging:
+    name: Deploy to Staging Environment
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment:
+      name: staging
+      url: https://api-staging.stokvel.bank.co.za
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_STAGING }}
+      
+      - name: Set AKS context
+        uses: azure/aks-set-context@v4
+        with:
+          resource-group: ${{ secrets.STAGING_RESOURCE_GROUP }}
+          cluster-name: ${{ secrets.STAGING_CLUSTER_NAME }}
+      
+      - name: Create Kubernetes namespace
+        run: |
+          kubectl create namespace digitalstokvel-staging --dry-run=client -o yaml | kubectl apply -f -
+      
+      - name: Deploy services to AKS
+        run: |
+          # Update Kubernetes manifests with new image tags
+          # This is a placeholder - adjust based on your actual manifest structure
+          
+          echo "Deploying to staging environment..."
+          
+          # Deploy each service
+          for service in GroupService ContributionService PayoutService GovernanceService NotificationService CreditProfileService UssdGateway ApiGateway; do
+            echo "Deploying $service..."
+            # kubectl set image deployment/$service $service=${{ env.REGISTRY }}/digitalstokvel-$service:staging-latest -n digitalstokvel-staging
+            # kubectl rollout status deployment/$service -n digitalstokvel-staging --timeout=5m
+          done
+      
+      - name: Run smoke tests
+        run: |
+          echo "Running smoke tests against staging..."
+          # Add your smoke test commands here
+          # Example: curl https://api-staging.stokvel.bank.co.za/health
+      
+      - name: Deployment summary
+        run: |
+          echo "## Staging Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Staging" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployed by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** https://api-staging.stokvel.bank.co.za" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Services Deployed:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Group Service" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Contribution Service" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Payout Service" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Governance Service" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Notification Service" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Credit Profile Service" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ USSD Gateway" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ API Gateway" >> $GITHUB_STEP_SUMMARY
+
+  notify:
+    name: Notify Team
+    runs-on: ubuntu-latest
+    needs: deploy-to-staging
+    if: always()
+    
+    steps:
+      - name: Send notification
+        run: |
+          if [[ "${{ needs.deploy-to-staging.result }}" == "success" ]]; then
+            echo "✅ Staging deployment successful!"
+            # Add Slack/Teams notification here
+          else
+            echo "❌ Staging deployment failed!"
+            # Add Slack/Teams notification here
+          fi

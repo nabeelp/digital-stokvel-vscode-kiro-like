@@ -1,0 +1,78 @@
+# Auto-labeler configuration for Pull Requests
+# Automatically adds labels based on changed files
+
+# Services
+'service: group':
+  - 'src/services/DigitalStokvel.GroupService/**/*'
+
+'service: contribution':
+  - 'src/services/DigitalStokvel.ContributionService/**/*'
+
+'service: payout':
+  - 'src/services/DigitalStokvel.PayoutService/**/*'
+
+'service: governance':
+  - 'src/services/DigitalStokvel.GovernanceService/**/*'
+
+'service: notification':
+  - 'src/services/DigitalStokvel.NotificationService/**/*'
+
+'service: credit-profile':
+  - 'src/services/DigitalStokvel.CreditProfileService/**/*'
+
+# Gateways
+'gateway: api':
+  - 'src/gateways/DigitalStokvel.ApiGateway/**/*'
+
+'gateway: ussd':
+  - 'src/gateways/DigitalStokvel.UssdGateway/**/*'
+
+# Shared libraries
+'shared: common':
+  - 'src/shared/DigitalStokvel.Common/**/*'
+
+'shared: domain':
+  - 'src/shared/DigitalStokvel.Domain/**/*'
+
+'shared: infrastructure':
+  - 'src/shared/DigitalStokvel.Infrastructure/**/*'
+
+# Documentation
+'documentation':
+  - 'docs/**/*'
+  - '**/*.md'
+  - '.kiro-like/specs/**/*'
+
+# Configuration
+'configuration':
+  - '**/*.json'
+  - '**/*.yml'
+  - '**/*.yaml'
+  - '**/appsettings*.json'
+
+# CI/CD
+'ci/cd':
+  - '.github/**/*'
+  - 'Dockerfile'
+  - '**/Dockerfile'
+  - 'docker-compose.yml'
+  - '**/deploy/**/*'
+
+# Tests
+'tests':
+  - '**/*Tests/**/*'
+  - '**/*Test.cs'
+  - '**/*Tests.cs'
+
+# Infrastructure
+'infrastructure':
+  - 'k8s/**/*'
+  - 'terraform/**/*'
+  - 'bicep/**/*'
+
+# Dependencies
+'dependencies':
+  - '**/packages.lock.json'
+  - '**/*.csproj'
+  - 'Directory.Build.props'
+  - 'Directory.Packages.props'
