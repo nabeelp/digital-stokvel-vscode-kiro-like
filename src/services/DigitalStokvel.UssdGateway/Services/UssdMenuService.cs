@@ -24,16 +24,19 @@ public class UssdMenuService : IUssdMenuService
     private readonly ILogger<UssdMenuService> _logger;
     private readonly IConfiguration _configuration;
     private readonly IApiGatewayClient _apiGatewayClient;
+    private readonly ISmsService _smsService;
     private readonly Dictionary<string, Dictionary<string, string>> _menuTexts;
 
     public UssdMenuService(
         ILogger<UssdMenuService> logger,
         IConfiguration configuration,
-        IApiGatewayClient apiGatewayClient)
+        IApiGatewayClient apiGatewayClient,
+        ISmsService smsService)
     {
         _logger = logger;
         _configuration = configuration;
         _apiGatewayClient = apiGatewayClient;
+        _smsService = smsService;
         
         // Initialize menu texts for supported languages
         _menuTexts = InitializeMenuTexts();
@@ -372,6 +375,29 @@ public class UssdMenuService : IUssdMenuService
 
         _logger.LogInformation("Payment successful. Transaction: {TransactionRef}, Receipt: {ReceiptNumber}",
             paymentResult.TransactionRef, paymentResult.Receipt?.ReceiptNumber);
+
+        // Send SMS receipt (fallback for USSD session completion)
+        var groupName = context["selected_group_name"]?.ToString() ?? "Group";
+        var receiptNumber = paymentResult.Receipt?.ReceiptNumber ?? paymentResult.TransactionRef;
+        
+        // Fire-and-forget SMS send (don't block USSD response)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _smsService.SendReceiptSmsAsync(
+                    session.PhoneNumber,
+                    groupName,
+                    amount,
+                    receiptNumber,
+                    session.Language);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending SMS receipt for payment {TransactionRef}", 
+                    paymentResult.TransactionRef);
+            }
+        });
 
         return new UssdSessionResponseDto
         {
