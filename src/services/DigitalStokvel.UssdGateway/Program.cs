@@ -90,6 +90,9 @@ try
     // Register application services
     builder.Services.AddScoped<IUssdSessionService, UssdSessionService>();
     builder.Services.AddScoped<IUssdMenuService, UssdMenuService>();
+    
+    // Register API Gateway client with HttpClient
+    builder.Services.AddHttpClient<IApiGatewayClient, ApiGatewayClient>();
 
     var app = builder.Build();
 
