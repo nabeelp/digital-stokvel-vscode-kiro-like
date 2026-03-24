@@ -181,7 +181,26 @@ public class PayoutService : IPayoutService
             throw new InvalidOperationException($"Payout {payoutId} not found");
         }
 
-        // Build response with placeholder member data
+        // Build disbursement list with member information
+        var disbursements = new List<DisbursementDto>();
+        foreach (var d in payout.Disbursements)
+        {
+            disbursements.Add(new DisbursementDto
+            {
+                Member = new MemberDto
+                {
+                    Id = d.MemberId,
+                    Name = await GetMemberNameAsync(d.MemberId),
+                    Phone = await GetMemberPhoneAsync(d.MemberId)
+                },
+                Amount = d.Amount,
+                TransactionRef = d.TransactionRef,
+                Status = d.Status.ToString(),
+                ExecutedAt = d.ExecutedAt
+            });
+        }
+
+        // Build response with simulated member data
         return new PayoutStatusResponse
         {
             Id = payout.Id,
@@ -189,33 +208,21 @@ public class PayoutService : IPayoutService
             PayoutType = payout.PayoutType.ToString(),
             TotalAmount = payout.TotalAmount,
             Status = payout.Status.ToString(),
-            Disbursements = payout.Disbursements.Select(d => new DisbursementDto
-            {
-                Member = new MemberDto
-                {
-                    Id = d.MemberId,
-                    Name = "Placeholder Member", // TODO: Fetch actual member name
-                    Phone = "+27821234567" // TODO: Fetch actual member phone
-                },
-                Amount = d.Amount,
-                TransactionRef = d.TransactionRef,
-                Status = d.Status.ToString(),
-                ExecutedAt = d.ExecutedAt
-            }).ToList(),
+            Disbursements = disbursements,
             InitiatedAt = payout.InitiatedAt,
             ApprovedAt = payout.ApprovedAt,
             ExecutedAt = payout.ExecutedAt,
             InitiatedBy = new InitiatorDto
             {
                 Id = payout.InitiatedBy,
-                Name = "Placeholder Initiator", // TODO: Fetch actual initiator name
-                Role = "chairperson" // TODO: Fetch actual role
+                Name = await GetMemberNameAsync(payout.InitiatedBy),
+                Role = "chairperson" // Simulated for MVP - TODO: Fetch from group_members table
             },
             ApprovedBy = payout.ApprovedBy.HasValue ? new ApproverDto
             {
                 Id = payout.ApprovedBy.Value,
-                Name = "Placeholder Approver", // TODO: Fetch actual approver name
-                Role = "treasurer" // TODO: Fetch actual role
+                Name = await GetMemberNameAsync(payout.ApprovedBy.Value),
+                Role = "treasurer" // Simulated for MVP - TODO: Fetch from group_members table
             } : null
         };
     }
@@ -285,5 +292,71 @@ public class PayoutService : IPayoutService
         var date = DateTime.UtcNow.ToString("yyyy-MM-dd");
         var random = new Random().Next(1000, 9999);
         return $"PAY-{date}-{random}";
+    }
+
+    /// <summary>
+    /// Get member name by ID
+    /// TODO: In production, integrate with User Service or Group Service API
+    /// </summary>
+    private async Task<string> GetMemberNameAsync(Guid memberId)
+    {
+        // Simulated member name for MVP
+        // In production, query users table or call User Service API
+        await Task.CompletedTask;
+        return $"Member-{memberId.ToString().Substring(0, 8)}";
+    }
+
+    /// <summary>
+    /// Get member phone number by ID
+    /// TODO: In production, integrate with User Service or Group Service API
+    /// </summary>
+    private async Task<string> GetMemberPhoneAsync(Guid memberId)
+    {
+        // Simulated phone number for MVP
+        // In production, query users table or call User Service API
+        await Task.CompletedTask;
+        return $"+2782{memberId.ToString().Substring(0, 7).Replace("-", "")}";
+    }
+
+    /// <summary>
+    /// Get payout history for a group with pagination.
+    /// </summary>
+    public async Task<GroupPayoutHistoryResponse> GetGroupPayoutHistoryAsync(Guid groupId, int skip = 0, int take = 20)
+    {
+        _logger.LogInformation("Retrieving payout history for group {GroupId} (skip: {Skip}, take: {Take})", 
+            groupId, skip, take);
+
+        var totalCount = await _context.Payouts
+            .Where(p => p.GroupId == groupId)
+            .CountAsync();
+
+        var payouts = await _context.Payouts
+            .Where(p => p.GroupId == groupId)
+            .Include(p => p.Disbursements)
+            .OrderByDescending(p => p.InitiatedAt)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync();
+
+        var payoutSummaries = payouts.Select(p => new PayoutSummaryDto
+        {
+            Id = p.Id,
+            PayoutType = p.PayoutType.ToString(),
+            TotalAmount = p.TotalAmount,
+            Status = p.Status.ToString(),
+            DisbursementCount = p.Disbursements.Count,
+            InitiatedAt = p.InitiatedAt,
+            ApprovedAt = p.ApprovedAt,
+            ExecutedAt = p.ExecutedAt
+        }).ToList();
+
+        return new GroupPayoutHistoryResponse
+        {
+            GroupId = groupId,
+            Payouts = payoutSummaries,
+            TotalCount = totalCount,
+            Skip = skip,
+            Take = take
+        };
     }
 }

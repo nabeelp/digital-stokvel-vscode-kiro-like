@@ -301,3 +301,80 @@ public class ApproverDto
     /// </summary>
     public string Role { get; set; } = string.Empty;
 }
+
+/// <summary>
+/// Response containing payout history for a group.
+/// </summary>
+public class GroupPayoutHistoryResponse
+{
+    /// <summary>
+    /// ID of the group.
+    /// </summary>
+    public Guid GroupId { get; set; }
+
+    /// <summary>
+    /// List of payouts for the group.
+    /// </summary>
+    public List<PayoutSummaryDto> Payouts { get; set; } = new();
+
+    /// <summary>
+    /// Total number of payouts for the group.
+    /// </summary>
+    public int TotalCount { get; set; }
+
+    /// <summary>
+    /// Number of payouts skipped (for pagination).
+    /// </summary>
+    public int Skip { get; set; }
+
+    /// <summary>
+    /// Maximum number of payouts returned (for pagination).
+    /// </summary>
+    public int Take { get; set; }
+}
+
+/// <summary>
+/// Summary information about a payout (for list views).
+/// </summary>
+public class PayoutSummaryDto
+{
+    /// <summary>
+    /// Unique ID of the payout.
+    /// </summary>
+    public Guid Id { get; set; }
+
+    /// <summary>
+    /// Type of payout.
+    /// </summary>
+    public string PayoutType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Total amount paid out.
+    /// </summary>
+    public decimal TotalAmount { get; set; }
+
+    /// <summary>
+    /// Current status of the payout.
+    /// </summary>
+    public string Status { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Number of disbursements in this payout.
+    /// </summary>
+    public int DisbursementCount { get; set; }
+
+    /// <summary>
+    /// Timestamp when the payout was initiated.
+    /// </summary>
+    public DateTime InitiatedAt { get; set; }
+
+    /// <summary>
+    /// Timestamp when the payout was approved (null if not yet approved).
+    /// </summary>
+    public DateTime? ApprovedAt { get; set; }
+
+    /// <summary>
+    /// Timestamp when the payout was executed (null if not yet executed).
+    /// </summary>
+    public DateTime? ExecutedAt { get; set; }
+}

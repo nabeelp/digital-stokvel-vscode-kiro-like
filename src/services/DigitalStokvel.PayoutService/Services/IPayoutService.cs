@@ -23,4 +23,9 @@ public interface IPayoutService
     /// Retrieves the status of a payout including disbursements.
     /// </summary>
     Task<PayoutStatusResponse> GetPayoutStatusAsync(Guid payoutId);
+
+    /// <summary>
+    /// Retrieves payout history for a group.
+    /// </summary>
+    Task<GroupPayoutHistoryResponse> GetGroupPayoutHistoryAsync(Guid groupId, int skip = 0, int take = 20);
 }

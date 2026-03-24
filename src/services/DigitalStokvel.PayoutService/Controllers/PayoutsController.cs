@@ -150,6 +150,41 @@ public class PayoutsController : ControllerBase
     }
 
     /// <summary>
+    /// Retrieves payout history for a group with pagination.
+    /// GET /api/v1/groups/{groupId}/payouts
+    /// </summary>
+    /// <param name="groupId">ID of the group</param>
+    /// <param name="skip">Number of records to skip (pagination)</param>
+    /// <param name="take">Number of records to take (pagination)</param>
+    /// <returns>Group payout history with summaries</returns>
+    [HttpGet("~/api/v1/groups/{groupId}/payouts")]
+    public async Task<ActionResult<GroupPayoutHistoryResponse>> GetGroupPayoutHistory(
+        Guid groupId,
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 20)
+    {
+        try
+        {
+            if (skip < 0 || take < 1 || take > 100)
+            {
+                return BadRequest(new { error = "Invalid pagination parameters. Skip must be >= 0, take must be between 1 and 100." });
+            }
+
+            _logger.LogInformation("Retrieving payout history for group {GroupId} (skip: {Skip}, take: {Take})", 
+                groupId, skip, take);
+
+            var response = await _payoutService.GetGroupPayoutHistoryAsync(groupId, skip, take);
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving payout history for group {GroupId}", groupId);
+            return StatusCode(500, new { error = "An error occurred while retrieving the payout history" });
+        }
+    }
+
+    /// <summary>
     /// Extracts the user ID from JWT claims.
     /// </summary>
     /// <returns>User ID as Guid, or Guid.Empty if not found or invalid</returns>
