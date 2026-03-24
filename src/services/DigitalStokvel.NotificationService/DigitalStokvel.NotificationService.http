@@ -1,0 +1,6 @@
+@DigitalStokvel.NotificationService_HostAddress = http://localhost:5042
+
+GET {{DigitalStokvel.NotificationService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

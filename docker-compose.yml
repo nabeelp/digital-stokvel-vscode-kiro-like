@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Primary Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: digitalstokvel-postgres
+    environment:
+      POSTGRES_USER: stokvel_admin
+      POSTGRES_PASSWORD: Dev@Password123
+      POSTGRES_DB: digitalstokvel
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stokvel_admin -d digitalstokvel"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL Ledger Database (Append-Only)
+  postgres-ledger:
+    image: postgres:15-alpine
+    container_name: digitalstokvel-ledger
+    environment:
+      POSTGRES_USER: ledger_admin
+      POSTGRES_PASSWORD: Dev@Password123
+      POSTGRES_DB: digitalstokvel_ledger
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_ledger_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ledger_admin -d digitalstokvel_ledger"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: digitalstokvel-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass Dev@Password123
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RabbitMQ Message Queue
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: digitalstokvel-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: stokvel_admin
+      RABBITMQ_DEFAULT_PASS: Dev@Password123
+    ports:
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # pgAdmin (PostgreSQL Management UI - Optional)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: digitalstokvel-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@digitalstokvel.local
+      PGADMIN_DEFAULT_PASSWORD: Dev@Password123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+      - postgres-ledger
+
+volumes:
+  postgres_data:
+    driver: local
+  postgres_ledger_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  default:
+    name: digitalstokvel-network

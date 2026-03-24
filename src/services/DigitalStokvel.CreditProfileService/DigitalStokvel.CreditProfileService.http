@@ -1,0 +1,6 @@
+@DigitalStokvel.CreditProfileService_HostAddress = http://localhost:5264
+
+GET {{DigitalStokvel.CreditProfileService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

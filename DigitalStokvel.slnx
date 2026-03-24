@@ -1,0 +1,20 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/gateways/">
+    <Project Path="src/gateways/DigitalStokvel.ApiGateway/DigitalStokvel.ApiGateway.csproj" />
+    <Project Path="src/gateways/DigitalStokvel.UssdGateway/DigitalStokvel.UssdGateway.csproj" />
+  </Folder>
+  <Folder Name="/src/services/">
+    <Project Path="src/services/DigitalStokvel.ContributionService/DigitalStokvel.ContributionService.csproj" />
+    <Project Path="src/services/DigitalStokvel.CreditProfileService/DigitalStokvel.CreditProfileService.csproj" />
+    <Project Path="src/services/DigitalStokvel.GovernanceService/DigitalStokvel.GovernanceService.csproj" />
+    <Project Path="src/services/DigitalStokvel.GroupService/DigitalStokvel.GroupService.csproj" />
+    <Project Path="src/services/DigitalStokvel.NotificationService/DigitalStokvel.NotificationService.csproj" />
+    <Project Path="src/services/DigitalStokvel.PayoutService/DigitalStokvel.PayoutService.csproj" />
+  </Folder>
+  <Folder Name="/src/shared/">
+    <Project Path="src/shared/DigitalStokvel.Common/DigitalStokvel.Common.csproj" />
+    <Project Path="src/shared/DigitalStokvel.Domain/DigitalStokvel.Domain.csproj" />
+    <Project Path="src/shared/DigitalStokvel.Infrastructure/DigitalStokvel.Infrastructure.csproj" />
+  </Folder>
+</Solution>

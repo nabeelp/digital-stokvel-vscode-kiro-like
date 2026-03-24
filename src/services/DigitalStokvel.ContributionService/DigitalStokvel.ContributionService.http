@@ -1,0 +1,6 @@
+@DigitalStokvel.ContributionService_HostAddress = http://localhost:5147
+
+GET {{DigitalStokvel.ContributionService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

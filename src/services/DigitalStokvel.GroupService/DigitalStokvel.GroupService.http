@@ -1,0 +1,6 @@
+@DigitalStokvel.GroupService_HostAddress = http://localhost:5215
+
+GET {{DigitalStokvel.GroupService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
