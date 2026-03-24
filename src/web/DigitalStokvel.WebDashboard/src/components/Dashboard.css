@@ -306,6 +306,24 @@
   box-shadow: 0 4px 12px rgba(156, 39, 176, 0.3);
 }
 
+.reports-button {
+  width: 100%;
+  padding: 0.75rem;
+  background: linear-gradient(90deg, #F97316, #EF4444);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.reports-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+}
+
 .loading-container {
   min-height: 100vh;
   display: flex;

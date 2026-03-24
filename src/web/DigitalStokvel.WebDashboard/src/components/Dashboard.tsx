@@ -145,6 +145,12 @@ export function Dashboard() {
                   >
                     Approve Payouts
                   </button>
+                  <button 
+                    className="reports-button"
+                    onClick={() => navigate(`/dashboard/reports/${group.id}`)}
+                  >
+                    View Reports
+                  </button>
                 </div>
               ))}
             </div>
