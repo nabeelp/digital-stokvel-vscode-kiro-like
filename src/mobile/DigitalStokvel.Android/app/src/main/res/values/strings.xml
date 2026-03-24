@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Digital Stokvel</string>
+    
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_groups">Groups</string>
+    <string name="nav_contributions">Contributions</string>
+    <string name="nav_payouts">Payouts</string>
+    <string name="nav_profile">Profile</string>
+    
+    <!-- Authentication -->
+    <string name="auth_login">Login</string>
+    <string name="auth_register">Register</string>
+    <string name="auth_phone_number">Phone Number</string>
+    <string name="auth_pin">PIN</string>
+    <string name="auth_forgot_pin">Forgot PIN?</string>
+    <string name="auth_biometric_prompt">Use biometric authentication</string>
+    
+    <!-- Groups -->
+    <string name="groups_title">My Groups</string>
+    <string name="groups_create">Create Group</string>
+    <string name="groups_join">Join Group</string>
+    <string name="groups_empty">No groups yet</string>
+    <string name="groups_loading">Loading groups…</string>
+    
+    <!-- Contributions -->
+    <string name="contributions_title">Contributions</string>
+    <string name="contributions_make_payment">Make Payment</string>
+    <string name="contributions_due">Due</string>
+    <string name="contributions_paid">Paid</string>
+    <string name="contributions_overdue">Overdue</string>
+    
+    <!-- Payouts -->
+    <string name="payouts_title">Payouts</string>
+    <string name="payouts_pending">Pending</string>
+    <string name="payouts_approved">Approved</string>
+    <string name="payouts_disbursed">Disbursed</string>
+    
+    <!-- Common -->
+    <string name="common_save">Save</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_edit">Edit</string>
+    <string name="common_submit">Submit</string>
+    <string name="common_loading">Loading…</string>
+    <string name="common_error">Error occurred</string>
+    <string name="common_retry">Retry</string>
+    <string name="common_ok">OK</string>
+    
+    <!-- Offline -->
+    <string name="offline_title">You\'re offline</string>
+    <string name="offline_message">Some features may be limited</string>
+</resources>

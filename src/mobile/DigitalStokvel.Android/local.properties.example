@@ -1,0 +1,14 @@
+# Android SDK location
+# Copy this file to local.properties and update with your SDK path
+# This file is not committed to version control
+
+sdk.dir=/path/to/android/sdk
+
+# API Configuration (for development)
+# Override the production API URL for local testing
+API_BASE_URL=http://10.0.2.2:5000/v1
+
+# Examples based on your OS:
+# Windows: C\:\\Users\\YourName\\AppData\\Local\\Android\\Sdk
+# macOS: /Users/YourName/Library/Android/sdk
+# Linux: /home/YourName/Android/Sdk
