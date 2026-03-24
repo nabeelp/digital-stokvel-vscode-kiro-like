@@ -23,6 +23,7 @@
     <Project Path="tests/unit/DigitalStokvel.ContributionService.Tests/DigitalStokvel.ContributionService.Tests.csproj" />
     <Project Path="tests/unit/DigitalStokvel.GovernanceService.Tests/DigitalStokvel.GovernanceService.Tests.csproj" />
     <Project Path="tests/unit/DigitalStokvel.GroupService.Tests/DigitalStokvel.GroupService.Tests.csproj" />
+    <Project Path="tests/unit/DigitalStokvel.Infrastructure.Tests/DigitalStokvel.Infrastructure.Tests.csproj" />
     <Project Path="tests/unit/DigitalStokvel.NotificationService.Tests/DigitalStokvel.NotificationService.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">

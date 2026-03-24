@@ -1,0 +1,262 @@
+feat(infrastructure): implement CBS REST API client with resilience patterns (Task 4.1.1 ✅)
+
+Implements synchronous REST API client for Core Banking System (CBS) integration
+with production-ready resilience patterns using Polly library. This provides the
+foundation for all CBS operations including account creation, transactions, and
+balance inquiries.
+
+**Task Completion:**
+- ✅ Task 4.1.1: Implement synchronous REST API client for CBS
+- Progress: 115/207 (56%) | Phase 4: 1/18 (6%)
+- Design Reference: Section 8.1 - Core Banking System Integration
+
+**Implementation:**
+
+1. **CBS Client (CbsClient.cs - ~450 lines):**
+   - Implements ICbsClient interface with 5 API operations
+   - Uses HttpClient with typed client pattern via dependency injection
+   - Configuration via IOptions<CbsClientOptions> (BaseUrl, ApiKey, Timeout)
+   - Comprehensive structured logging with ILogger<CbsClient>
+   
+   **API Operations:**
+   - CreateGroupAccountAsync: POST /api/accounts
+     * Creates CBS savings account for stokvel group
+     * Returns CBS account number for future transactions
+   - CreditAccountAsync: POST /api/transactions (CREDIT)
+     * Credits stokvel account (member contributions)
+     * Returns transaction ID and updated balance
+   - DebitAccountAsync: POST /api/transactions (DEBIT)
+     * Debits stokvel account (member payouts)
+     * Returns transaction ID and updated balance
+   - GetAccountBalanceAsync: GET /api/accounts/{id}/balance
+     * Queries current account balance from CBS
+     * Returns balance and available balance
+   - GetAccountStatementAsync: GET /api/accounts/{id}/statement
+     * Retrieves transaction history for date range
+     * Returns collection of transactions with dates, amounts, types
+
+2. **Resilience Patterns (Polly 8.6.0):**
+   - **Retry Policy:** Exponential backoff with 3 attempts
+     * Delays: 2 seconds, 4 seconds, 8 seconds (2^retryAttempt)
+     * Retries on non-success HTTP status codes
+     * Logs warnings with status code and retry attempt number
+     * Policy: WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)))
+   
+   - **Circuit Breaker:** Opens after 5 consecutive failures
+     * Break duration: 1 minute
+     * Half-open state after break period for testing
+     * Logs error on circuit open, info on reset/half-open
+     * Policy: CircuitBreakerAsync(5, TimeSpan.FromMinutes(1))
+   
+   - **Combined Policy:** Circuit breaker wraps retry (outer → inner)
+     * Ensures proper failure isolation
+     * Circuit breaker state survives individual retry attempts
+     * ExecuteWithResilienceAsync() helper applies combined policy
+   
+   - **Feature Flags:** EnableRetry and EnableCircuitBreaker in options
+     * Allows disabling resilience for testing/debugging
+     * Defaults to enabled for production use
+
+3. **Error Handling:**
+   - **BrokenCircuitException:** Caught when circuit breaker is open
+     * User message: "Core Banking System is temporarily unavailable"
+     * Suggests trying again later
+   - **HttpRequestException:** Network/transport failures
+     * Wrapped in CbsClientException with descriptive message
+     * Includes original exception message for debugging
+   - **JsonException:** Invalid/malformed CBS responses
+     * Wrapped in CbsClientException indicating format problem
+   - **Validation:** All responses validated for required fields
+     * Throws CbsClientException with specific field missing
+   - **Logging:** Error details logged before throwing exceptions
+     * Includes operation context, parameters, error details
+
+4. **Configuration (CbsClientOptions):**
+   - BaseUrl: CBS API base URL (required, validated on startup)
+   - ApiKey: Optional authentication key (sent as X-API-Key header)
+   - TimeoutSeconds: HTTP request timeout (default: 30 seconds)
+   - EnableRetry: Toggle retry policy (default: true)
+   - EnableCircuitBreaker: Toggle circuit breaker (default: true)
+   - Bound from appsettings.json section "CbsClient"
+
+5. **Dependency Injection (ExternalServicesDependencyInjection.cs):**
+   - AddCbsClient extension method for IServiceCollection
+   - Registers ICbsClient → CbsClient with HttpClient factory
+   - Configures HttpClient:
+     * BaseAddress from options
+     * Timeout from options
+     * X-API-Key header if ApiKey present
+     * Accept: application/json header
+   - Binds CbsClientOptions from configuration
+   - Validates BaseUrl is provided (throws on missing)
+   - Placeholder methods for future clients:
+     * AddPaymentGatewayClient (Task 4.2.1)
+     * AddSmsGatewayClient (Task 4.3.1)
+
+6. **Internal DTOs:**
+   - CreateAccountRequest/Response: Account creation
+   - TransactionRequest/Response: Credit/debit transactions
+   - BalanceResponse: Balance inquiry results
+   - StatementResponse: Transaction history
+   - StatementTransaction: Individual transaction details
+   - All DTOs internal to CbsClient implementation
+   - Not exposed in public API surface
+
+**Testing:**
+
+1. **Test Project (DigitalStokvel.Infrastructure.Tests):**
+   - Created unit test project targeting .NET 10
+   - Added to solution via `dotnet sln add`
+   - References: xUnit 2.9.2, Moq 4.20.72, coverlet 6.0.0
+   - Project reference to DigitalStokvel.Infrastructure
+
+2. **Unit Tests (CbsClientTests.cs - 9 tests, ~340 lines):**
+   - Mock HttpMessageHandler for HTTP interception
+   - Mock ILogger<CbsClient> for logging verification
+   - Test setup: Options, HttpClient with mocked handler
+   
+   **Test Coverage:**
+   - CreateGroupAccountAsync_Success_ReturnsAccountNumber ✅
+     * Verifies POST /api/accounts success path
+     * Validates account number returned
+   - CreateGroupAccountAsync_InvalidResponse_ThrowsCbsClientException ✅
+     * Tests empty account number handling
+     * Verifies CbsClientException thrown with message
+   - CreditAccountAsync_Success_ReturnsTransactionId ✅
+     * Verifies POST /api/transactions (CREDIT) success
+     * Validates transaction ID returned
+   - DebitAccountAsync_Success_ReturnsTransactionId ✅
+     * Verifies POST /api/transactions (DEBIT) success
+     * Validates transaction ID returned
+   - GetAccountBalanceAsync_Success_ReturnsBalance ✅
+     * Verifies GET balance endpoint success
+     * Validates decimal balance returned
+   - GetAccountStatementAsync_Success_ReturnsTransactions ✅
+     * Verifies GET statement with multiple transactions
+     * Validates transaction collection parsing
+   - GetAccountStatementAsync_NoTransactions_ReturnsEmpty ✅
+     * Tests empty transaction list handling
+     * Validates empty collection returned
+   - CreditAccountAsync_HttpError_ThrowsCbsClientException ✅
+     * Tests network failure handling
+     * Verifies HttpRequestException wrapped in CbsClientException
+   - CreditAccountAsync_InvalidStatusCode_ThrowsException ✅
+     * Tests non-2xx status code handling (500 Internal Server Error)
+     * Verifies CbsClientException thrown
+     * Validates inner exception is HttpRequestException
+
+3. **Test Results:**
+   - All 9 tests passing ✅
+   - Build time: 18.3s (Restore 0.6s, Build 2.5s, Test 15.4s)
+   - Coverage: Success paths, error paths, edge cases
+   - No external CBS dependency required for testing
+
+**Dependencies Added:**
+
+1. **DigitalStokvel.Infrastructure.csproj:**
+   - Microsoft.Extensions.Http 10.0.0
+     * HttpClient factory and typed client support
+   - Microsoft.Extensions.Options.ConfigurationExtensions 10.0.0
+     * Options pattern with configuration binding
+   - Polly 8.6.0
+     * Resilience policies (retry, circuit breaker)
+   - Fixed: Microsoft.Extensions.DependencyInjection.Abstractions
+     * Updated 10.0.0 → 10.0.4 to match transitive dependency
+     * Resolved NU1605 package downgrade warning
+
+2. **DigitalStokvel.Infrastructure.Tests.csproj:**
+   - xUnit 2.9.2 (test framework)
+   - Moq 4.20.72 (mocking library)
+   - coverlet.collector 6.0.0 (code coverage)
+   - Microsoft.NET.Test.Sdk 17.12.0 (test SDK)
+
+**Build Verification:**
+
+- Infrastructure Project Build: ✅ SUCCESS
+  * Restore: 0.9s
+  * DigitalStokvel.Domain: 0.9s
+  * DigitalStokvel.Common: 2.7s
+  * DigitalStokvel.Infrastructure: 4.6s
+  * Total: 8.9s
+
+- Test Project Build: ✅ SUCCESS
+  * Build: 2.5s
+  * Test execution: 15.4s (9 tests, 0 failed)
+  * Total: 18.3s
+
+**Technical Notes:**
+
+1. **Retry Strategy:**
+   - Exponential backoff prevents CBS overload during failures
+   - 3 attempts chosen for balance between reliability and latency
+   - Total max latency: ~14 seconds (2s + 4s + 8s) for transient failures
+   - Logs each retry with context for debugging
+
+2. **Circuit Breaker Strategy:**
+   - 5 failures threshold allows some transient issues without opening
+   - 1-minute break gives CBS time to recover from sustained issues
+   - Half-open state tests CBS availability before full reconnection
+   - Prevents cascading failures to upstream services
+
+3. **Combined Policy Rationale:**
+   - Circuit breaker outer, retry inner (Policy.WrapAsync order)
+   - Circuit breaker tracks cumulative failures across retries
+   - Retry doesn't waste attempts when circuit is open
+   - Proper failure isolation and cascading failure prevention
+
+4. **Error Message Design:**
+   - User-friendly messages for application layer
+   - Technical details logged but not exposed to users
+   - Inner exception preserved for debugging
+   - Operation context included in all error logs
+
+5. **Configuration Design:**
+   - Options pattern follows .NET best practices
+   - Validation on startup (fail fast if misconfigured)
+   - Feature flags allow disabling resilience for testing
+   - Sensible defaults for production use
+
+**Design Compliance:**
+
+✅ Section 8.1 - Core Banking System Integration:
+  - Synchronous REST API implementation
+  - Retry logic with exponential backoff (3 attempts, 2^n seconds)
+  - Circuit breaker pattern (5 failures, 1-minute break)
+  - Comprehensive error handling and logging
+  - Account operations: Create, credit, debit, balance, statement
+  - Asynchronous webhooks deferred to Task 4.1.5
+  - Transaction queueing fallback deferred to Task 4.1.8
+
+**Architecture Patterns:**
+
+- ✅ Repository Pattern: ICbsClient interface with CbsClient implementation
+- ✅ Dependency Injection: Typed HttpClient with service registration
+- ✅ Options Pattern: IOptions<CbsClientOptions> for configuration
+- ✅ Resilience Patterns: Polly retry and circuit breaker
+- ✅ Separation of Concerns: API client, DTOs, configuration separate
+- ✅ Testability: Interface-based design with mockable dependencies
+
+**Files Changed:**
+
+Added:
+  - src/shared/DigitalStokvel.Infrastructure/ExternalServices/CbsClient.cs (~450 lines)
+  - src/shared/DigitalStokvel.Infrastructure/ExternalServices/ExternalServicesDependencyInjection.cs (~65 lines)
+  - tests/unit/DigitalStokvel.Infrastructure.Tests/DigitalStokvel.Infrastructure.Tests.csproj
+  - tests/unit/DigitalStokvel.Infrastructure.Tests/ExternalServices/CbsClientTests.cs (~340 lines)
+
+Modified:
+  - src/shared/DigitalStokvel.Infrastructure/DigitalStokvel.Infrastructure.csproj (added packages)
+  - .kiro-like/specs/tasks.md (marked 4.1.1 complete, updated progress)
+
+**Next Tasks:**
+
+- 4.1.2: Implement create group savings account operation (uses CBS client)
+- 4.1.3: Implement credit/debit transaction operations (uses CBS client)
+- 4.1.4: Implement balance inquiry operation (uses CBS client)
+
+**Total Lines of Code:**
+- Implementation: ~515 lines (CbsClient + DI config)
+- Tests: ~340 lines
+- Total: ~855 lines
+
+Signed-off-by: Digital Stokvel Development Team <dev@digitalstokvel.co.za>
