@@ -148,7 +148,7 @@ This document breaks down the Digital Stokvel Banking implementation into sequen
 - [x] 2.3.7 Implement POST /recurring-payments endpoint ✅ March 24, 2026
 - [x] 2.3.8 Implement recurring payment scheduler ✅ March 24, 2026
 - [x] 2.3.9 Add contribution receipt generation ✅ March 24, 2026
-- [ ] 2.3.10 Add unit tests for Contribution Service (80%+ coverage)
+- [x] 2.3.10 Add unit tests for Contribution Service (80%+ coverage) ✅ March 24, 2026
 
 ### Task Group 2.4: Payout Service Implementation
 **Design Reference:** Section 2.2.3 - Payout Service, Section 5.4 - Payout API
