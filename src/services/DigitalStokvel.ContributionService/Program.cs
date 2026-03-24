@@ -77,6 +77,7 @@ try
 
     // Register application services
     builder.Services.AddScoped<IContributionService, DigitalStokvel.ContributionService.Services.ContributionService>();
+    builder.Services.AddScoped<IReceiptService, ReceiptService>();
 
     var app = builder.Build();
 

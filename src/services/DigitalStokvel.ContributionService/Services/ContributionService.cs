@@ -11,11 +11,16 @@ namespace DigitalStokvel.ContributionService.Services;
 public class ContributionService : IContributionService
 {
     private readonly ApplicationDbContext _context;
+    private readonly IReceiptService _receiptService;
     private readonly ILogger<ContributionService> _logger;
 
-    public ContributionService(ApplicationDbContext context, ILogger<ContributionService> logger)
+    public ContributionService(
+        ApplicationDbContext context,
+        IReceiptService receiptService,
+        ILogger<ContributionService> logger)
     {
         _context = context;
+        _receiptService = receiptService;
         _logger = logger;
     }
 
@@ -67,15 +72,32 @@ public class ContributionService : IContributionService
         _context.ContributionLedger.Add(ledgerEntry);
         await _context.SaveChangesAsync();
 
-        // Generate receipt (simulated)
+        // Fetch group information
+        // TODO: In production, this should call Group Service API or shared database
+        var groupName = await GetGroupNameAsync(request.GroupId);
+        var memberName = await GetMemberNameAsync(userId);
+        
+        // Calculate group balance after contribution
+        var balanceAfter = await CalculateGroupBalanceAsync(request.GroupId);
+
+        // Generate receipt with PDF
+        var receiptNumber = GenerateReceiptNumber();
+        var pdfUrl = await _receiptService.GenerateReceiptPdfAsync(
+            receiptNumber,
+            groupName,
+            memberName,
+            contribution.Amount,
+            balanceAfter,
+            DateTime.UtcNow);
+
         var receipt = new ReceiptDto
         {
-            ReceiptNumber = GenerateReceiptNumber(),
+            ReceiptNumber = receiptNumber,
             Date = DateTime.UtcNow,
-            GroupName = "Sample Group", // TODO: Fetch actual group name
+            GroupName = groupName,
             Amount = contribution.Amount,
-            BalanceAfter = 0, // TODO: Calculate actual balance
-            PdfUrl = null // TODO: Generate PDF receipt
+            BalanceAfter = balanceAfter,
+            PdfUrl = pdfUrl
         };
 
         var response = new CreateContributionResponse
@@ -89,7 +111,10 @@ public class ContributionService : IContributionService
             PaidAt = contribution.PaidAt
         };
 
-        _logger.LogInformation("Contribution {ContributionId} created successfully", contribution.Id);
+        _logger.LogInformation(
+            "Contribution {ContributionId} created successfully with receipt {ReceiptNumber}",
+            contribution.Id,
+            receiptNumber);
 
         return response;
     }
@@ -276,5 +301,47 @@ public class ContributionService : IContributionService
         var date = DateTime.UtcNow.ToString("yyyy-MM-dd");
         var random = new Random().Next(1000, 9999);
         return $"RCP-{date}-{random}";
+    }
+
+    /// <summary>
+    /// Get group name by ID
+    /// TODO: In production, integrate with Group Service API
+    /// </summary>
+    private async Task<string> GetGroupNameAsync(Guid groupId)
+    {
+        // Simulated group name for MVP
+        // In production, call Group Service API or query shared database
+        await Task.CompletedTask;
+        return $"Group-{groupId.ToString().Substring(0, 8)}";
+    }
+
+    /// <summary>
+    /// Get member name by user ID
+    /// TODO: In production, integrate with User Service or database
+    /// </summary>
+    private async Task<string> GetMemberNameAsync(Guid userId)
+    {
+        // Simulated member name for MVP
+        // In production, query users table or call User Service API
+        await Task.CompletedTask;
+        return $"Member-{userId.ToString().Substring(0, 8)}";
+    }
+
+    /// <summary>
+    /// Calculate total group savings account balance
+    /// </summary>
+    private async Task<decimal> CalculateGroupBalanceAsync(Guid groupId)
+    {
+        // Calculate total contributions for the group
+        var totalContributions = await _context.Contributions
+            .Where(c => c.GroupId == groupId && c.Status == ContributionStatus.Paid)
+            .SumAsync(c => c.Amount);
+
+        _logger.LogInformation(
+            "Calculated balance for group {GroupId}: {Balance}",
+            groupId,
+            totalContributions);
+
+        return totalContributions;
     }
 }

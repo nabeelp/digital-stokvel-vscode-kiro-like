@@ -189,6 +189,45 @@ public class ContributionsController : ControllerBase
     }
 
     /// <summary>
+    /// Download contribution receipt PDF
+    /// GET /api/v1/contributions/{contributionId}/receipt
+    /// </summary>
+    [HttpGet("{contributionId}/receipt")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetContributionReceipt(Guid contributionId)
+    {
+        try
+        {
+            _logger.LogInformation("Fetching receipt for contribution {ContributionId}", contributionId);
+
+            // In production, this would:
+            // 1. Fetch contribution from database
+            // 2. Verify user has access to this contribution
+            // 3. Return or redirect to the PDF URL
+            // For MVP, return simulated receipt information
+            
+            await Task.CompletedTask;
+
+            var receiptInfo = new
+            {
+                contributionId = contributionId,
+                receiptNumber = $"RCP-{DateTime.UtcNow:yyyy-MM-dd}-{Random.Shared.Next(1000, 9999)}",
+                pdfUrl = $"https://cdn.stokvel.bank.co.za/receipts/RCP-{DateTime.UtcNow:yyyy-MM-dd}-{contributionId}.pdf",
+                message = "Receipt PDF URL - In production, this would stream the PDF or redirect to CDN"
+            };
+
+            return Ok(receiptInfo);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching receipt for contribution {ContributionId}", contributionId);
+            return StatusCode(500, new { error = "An error occurred while fetching the receipt" });
+        }
+    }
+
+    /// <summary>
     /// Extract user ID from JWT claims
     /// </summary>
     private Guid GetUserIdFromClaims()
